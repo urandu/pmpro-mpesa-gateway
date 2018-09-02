@@ -39,7 +39,7 @@
 			add_action('pmpro_deactivation', array('PMProGateway_mpesa', 'pmpro_deactivation'));
 			add_action('pmpro_cron_mpesa_subscription_updates', array('PMProGateway_mpesa', 'pmpro_cron_mpesa_subscription_updates'));
 
-			//code to add at checkout if example is the current gateway
+			//code to add at checkout if mpesa is the current gateway
 			$gateway = pmpro_getOption("gateway");
 			if($gateway == "mpesa")
 			{
@@ -52,7 +52,7 @@
 		}
 
 		/**
-		 * Make sure example is in the gateways list
+		 * Make sure mpesa is in the gateways list
 		 *
 		 * @since 1.8
 		 */
@@ -65,7 +65,7 @@
 		}
 
 		/**
-		 * Get a list of payment options that the example gateway needs/supports.
+		 * Get a list of payment options that the mpesa gateway needs/supports.
 		 *
 		 * @since 1.8
 		 */
@@ -92,30 +92,30 @@
 		 */
 		static function pmpro_payment_options($options)
 		{
-			//get example options
-			$example_options = PMProGateway_mpesa::getGatewayOptions();
+			//get mpesa options
+			$mpesa_options = PMProGateway_mpesa::getGatewayOptions();
 
 			//merge with others.
-			$options = array_merge($example_options, $options);
+			$options = array_merge($mpesa_options, $options);
 
 			return $options;
 		}
 
 		/**
-		 * Display fields for example options.
+		 * Display fields for mpesa options.
 		 *
 		 * @since 1.8
 		 */
 		static function pmpro_payment_option_fields($values, $gateway)
 		{
 		?>
-		<tr class="pmpro_settings_divider gateway gateway_example" <?php if($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
+		<tr class="pmpro_settings_divider gateway gateway_mpesa" <?php if($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
 			<td colspan="2">
 				<?php _e('mpesa Settings', 'pmpro'); ?>
 			</td>
 		</tr>
-		<tr class="gateway gateway_example" <?php if($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
-			<?php // example custom pamyment settings here ?>
+		<tr class="gateway gateway_mpesa" <?php if($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
+			<?php // mpesa custom pamyment settings here ?>
 		</tr>
 		<?php
 		}
