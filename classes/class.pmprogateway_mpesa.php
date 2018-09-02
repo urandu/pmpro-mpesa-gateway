@@ -11,7 +11,7 @@ function mpesa_install()
     global $wpdb;
     global $mpesa_db_version;
 
-    $table_name = $wpdb->prefix . 'mpesa_pmpro';
+    $table_name = $wpdb->prefix . 'pmpro_mpesa';
 
     $charset_collate = $wpdb->get_charset_collate();
 
