@@ -31,7 +31,7 @@ function mpesa_install()
     add_option('mpesa_db_version', $mpesa_db_version);
 }
 
-register_activation_hook( __FILE__, 'mpesa_install' );
+
 /**
  * PMProGateway_gatewayname Class
  *
