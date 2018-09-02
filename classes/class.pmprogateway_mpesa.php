@@ -45,7 +45,7 @@
 			{
 				add_action('pmpro_checkout_preheader', array('PMProGateway_mpesa', 'pmpro_checkout_preheader'));
 				add_filter('pmpro_checkout_order', array('PMProGateway_mpesa', 'pmpro_checkout_order'));
-				add_filter('pmpro_include_billing_address_fields', array('PMProGateway_example', 'pmpro_include_billing_address_fields'));
+				add_filter('pmpro_include_billing_address_fields', array('PMProGateway_mpesa', 'pmpro_include_billing_address_fields'));
 				add_filter('pmpro_include_cardtype_field', array('PMProGateway_mpesa', 'pmpro_include_billing_address_fields'));
 				add_filter('pmpro_include_payment_information_fields', array('PMProGateway_mpesa', 'pmpro_include_payment_information_fields'));
 			}
@@ -58,8 +58,8 @@
 		 */
 		static function pmpro_gateways($gateways)
 		{
-			if(empty($gateways['example']))
-				$gateways['example'] = __('example', 'pmpro');
+			if(empty($gateways['mpesa']))
+				$gateways['mpesa'] = __('mpesa', 'pmpro');
 
 			return $gateways;
 		}
