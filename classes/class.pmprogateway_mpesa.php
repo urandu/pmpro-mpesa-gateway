@@ -93,7 +93,7 @@
 		static function pmpro_payment_options($options)
 		{
 			//get example options
-			$example_options = PMProGateway_example::getGatewayOptions();
+			$example_options = PMProGateway_mpesa::getGatewayOptions();
 
 			//merge with others.
 			$options = array_merge($example_options, $options);

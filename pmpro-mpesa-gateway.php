@@ -1,11 +1,11 @@
 <?php
 /*
-Plugin Name: Example Gateway for Paid Memberships Pro
-Description: Example Gateway for Paid Memberships Pro
+Plugin Name: Mpesa Gateway for Paid Memberships Pro
+Description: Mpesa Gateway for Paid Memberships Pro
 Version: .1
 */
 
-define("PMPRO_EXAMPLEGATEWAY_DIR", dirname(__FILE__));
+define("PMPRO_MPESAGATEWAY_DIR", dirname(__FILE__));
 
 //load payment gateway class
-require_once(PMPRO_EXAMPLEGATEWAY_DIR . "/classes/class.pmprogateway_example.php");
+require_once(PMPRO_MPESAGATEWAY_DIR . "/classes/class.pmprogateway_mpesa.php");
