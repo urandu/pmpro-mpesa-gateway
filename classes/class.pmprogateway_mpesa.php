@@ -583,6 +583,8 @@ class PMProGateway_mpesa extends PMProGateway
         else
             $host = "test.authorize.net";
 
+        //check db for transaction associated with phone_number
+        
         $path = "/gateway/transact.dll";
         $post_url = "https://" . $host . $path;
 
