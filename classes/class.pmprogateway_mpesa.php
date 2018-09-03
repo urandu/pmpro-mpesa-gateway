@@ -587,6 +587,7 @@ class PMProGateway_mpesa extends PMProGateway
         global $wpdb;
 
         $total_amount_paid_by_msisdn = $wpdb->get_var( "SELECT id, name FROM mytable" );
+
         $path = "/gateway/transact.dll";
         $post_url = "https://" . $host . $path;
 
