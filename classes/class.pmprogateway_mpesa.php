@@ -584,7 +584,9 @@ class PMProGateway_mpesa extends PMProGateway
             $host = "test.authorize.net";
 
         //check db for transaction associated with phone_number
-        
+        global $wpdb;
+
+        $total_amount_paid_by_msisdn = $wpdb->get_var( "SELECT id, name FROM mytable" );
         $path = "/gateway/transact.dll";
         $post_url = "https://" . $host . $path;
 
