@@ -310,7 +310,7 @@ class PMProGateway_mpesa extends PMProGateway
         unset($fields['bzipcode']);
         unset($fields['bcountry']);
         unset($fields['bphone']);
-        $fields['cvv'] = true;
+        $fields['msisdn'] = true;
         return $fields;
     }
 
@@ -507,6 +507,8 @@ class PMProGateway_mpesa extends PMProGateway
         //check db for transaction associated with phone_number
         global $wpdb;
 
+        //to use account_number for paybills
+        $mpesa_msisdn = $order->mpesa_msisdn;
         $total_amount_paid_by_msisdn = $wpdb->get_var( "SELECT id, name FROM mytable" );
 
         $path = "/gateway/transact.dll";
