@@ -509,14 +509,14 @@ class PMProGateway_mpesa extends PMProGateway
 
         //to use account_number for paybills
         $mpesa_msisdn = $order->mpesa_msisdn;
-        $total_amount_paid_by_msisdn = $wpdb->get_var( "SELECT SUM,name FROM mytable" );     
+        $total_amount_paid_by_msisdn = $wpdb->get_var( "SELECT SUM,name FROM mytable" );
 
         $path = "/gateway/transact.dll";
         $post_url = "https://" . $host . $path;
 
         $post_url = apply_filters("pmpro_authorizenet_post_url", $post_url, $gateway_environment);
 
-        //what amount to authorize? just $1 to test
+        //what amount to authorize? just $1 to test.
         $amount = "1.00";
 
         //combine address
