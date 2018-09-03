@@ -21,7 +21,7 @@ function mpesa_install()
         time datetime DEFAULT CURRENT_TIMESTAMP,
         user_id varchar(255) NOT NULL,
         amount float NOT NULL,
-        order_id varchar(255),
+        order_id varchar(255) NOT NULL DEFAULT -1,
         payload longtext
 	  ) $charset_collate;";
 
