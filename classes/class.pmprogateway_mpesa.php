@@ -509,7 +509,7 @@ class PMProGateway_mpesa extends PMProGateway
 
         //to use account_number for paybills
         $mpesa_msisdn = $order->mpesa_msisdn;
-        $total_amount_paid_by_msisdn = $wpdb->get_var( "SELECT SUM,name FROM mytable" );   
+        $total_amount_paid_by_msisdn = $wpdb->get_var( "SELECT SUM,name FROM mytable" );    
 
         $path = "/gateway/transact.dll";
         $post_url = "https://" . $host . $path;
