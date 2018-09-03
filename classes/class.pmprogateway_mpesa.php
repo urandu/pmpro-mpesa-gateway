@@ -209,6 +209,27 @@ class PMProGateway_mpesa extends PMProGateway
      */
     static function pmpro_checkout_order($morder)
     {
+        //load up values
+        if(isset($_REQUEST['number']))
+            $braintree_number = sanitize_text_field($_REQUEST['number']);
+        else
+            $braintree_number = "";
+
+        if(isset($_REQUEST['expiration_date']))
+            $braintree_expiration_date = sanitize_text_field($_REQUEST['expiration_date']);
+        else
+            $braintree_expiration_date = "";
+
+        if(isset($_REQUEST['cvv']))
+            $braintree_cvv = sanitize_text_field($_REQUEST['cvv']);
+        else
+            $braintree_cvv = "";
+
+        $morder->braintree = new stdClass();
+        $morder->braintree->number = $braintree_number;
+        $morder->braintree->expiration_date = $braintree_expiration_date;
+        $morder->braintree->cvv = $braintree_cvv;
+
         return $morder;
     }
 
