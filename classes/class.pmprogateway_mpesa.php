@@ -516,7 +516,7 @@ class PMProGateway_mpesa extends PMProGateway
 
         $post_url = apply_filters("pmpro_authorizenet_post_url", $post_url, $gateway_environment);
 
-        //what amount to authorize? just $1 to test.nnjhjh
+        //what amount to authorize? just $1 to test.nnjhj
         $amount = "1.00";
 
         //combine address
