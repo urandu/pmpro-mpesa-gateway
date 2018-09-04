@@ -374,7 +374,7 @@ class PMProGateway_mpesa extends PMProGateway
             //auth first, then process
             if($this->authorize($order))
             {
-                $this->void($order);
+                //$this->void($order);
                 if(!pmpro_isLevelTrial($order->membership_level))
                 {
                     //subscription will start today with a 1 period trial
