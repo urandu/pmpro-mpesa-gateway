@@ -604,11 +604,19 @@ class PMProGateway_mpesa extends PMProGateway
         } else {
             // the amount is not fully paid return error to checkout page
 
-
+            if($total_amount_paid_by_msisdn > 0){
+                //partial payment
+                $order->partial_payment = $total_amount_paid_by_msisdn;
+                $message = sprintf("Received KES %s, please pay %s to complete the subscription.",
+                    $total_amount_paid_by_msisdn, $amount - $total_amount_paid_by_msisdn);
+            }else{
+                //no money received
+                $message = sprintf("No payment has been received from the msisdn %s.", $mpesa_msisdn);
+            }
 
             //$order->status = "error";
             $order->errorcode = "transaction failed 1";
-            $order->error = "transaction failed 2 $mpesa_msisdn";
+            $order->error = $message;
             $order->shorterror = "transaction failed 3";
             return false;
 
