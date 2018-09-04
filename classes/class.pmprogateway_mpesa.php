@@ -262,7 +262,7 @@ class PMProGateway_mpesa extends PMProGateway
                 <span class="pmpro_checkout-h3-name"><?php _e('Payment Information', 'paid-memberships-pro'); ?></span>
                 <?php
 
-//                print("<pre>");
+                //                print("<pre>");
                 $amount = $pmpro_level->initial_payment;
                 if(!empty($pmpro_error_fields["partial_payment"])){
                     $total_amount_paid_by_msisdn = $pmpro_error_fields["partial_payment"];
@@ -278,7 +278,7 @@ class PMProGateway_mpesa extends PMProGateway
                 }
 
 
-//                print("</pre>");
+                //                print("</pre>");
                 ?>
                 <span class="pmpro_checkout-h3-name"><?php print(__($info_message)); ?></span>
             </h3>

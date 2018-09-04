@@ -262,14 +262,14 @@ class PMProGateway_mpesa extends PMProGateway
                 <span class="pmpro_checkout-h3-name"><?php _e('Payment Information', 'paid-memberships-pro'); ?></span>
                 <?php
 
-                print("<pre>");
+                //                print("<pre>");
                 $amount = $pmpro_level->initial_payment;
                 if(!empty($pmpro_error_fields["partial_payment"])){
                     $total_amount_paid_by_msisdn = $pmpro_error_fields["partial_payment"];
                     $balance_amount = $pmpro_error_fields["balance_amount"];
                     unset($pmpro_error_fields["balance_amount"]);
                     unset($pmpro_error_fields["partial_payment"]);
-                    $info_message = sprintf('Received KES %s, please pay KES %s to complete the payment. 
+                    $info_message = sprintf('Received KES %s, please pay KES %s to complete the payment.<br> 
                     To pay, go to mpesa and pay %s to till number %s then press the submit button below'
                         ,$total_amount_paid_by_msisdn,$balance_amount,$balance_amount, "11111111");
 
@@ -278,7 +278,7 @@ class PMProGateway_mpesa extends PMProGateway
                 }
 
 
-                print("</pre>");
+                //                print("</pre>");
                 ?>
                 <span class="pmpro_checkout-h3-name"><?php print(__($info_message)); ?></span>
             </h3>
