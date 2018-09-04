@@ -211,7 +211,7 @@ class PMProGateway_mpesa extends PMProGateway
     {
         //load up values
         if (isset($_REQUEST['msisdn']))
-            $mpesa_msisdn = sanitize_text_field($_REQUEST['number']);
+            $mpesa_msisdn = sanitize_text_field($_REQUEST['msisdn']);
         else
             $mpesa_msisdn = "";
 
@@ -300,17 +300,32 @@ class PMProGateway_mpesa extends PMProGateway
      */
     static function pmpro_required_billing_fields($fields)
     {
-        unset($fields['CVV']);
-        unset($fields['bfirstname']);
-        unset($fields['blastname']);
-        unset($fields['baddress1']);
-        unset($fields['baddress2']);
-        unset($fields['bcity']);
-        unset($fields['bstate']);
-        unset($fields['bzipcode']);
-        unset($fields['bcountry']);
-        unset($fields['bphone']);
+//        unset($fields['CVV']);
+//        unset($fields['cvv']);
+//        unset($fields['bfirstname']);
+//        unset($fields['blastname']);
+//        unset($fields['baddress1']);
+//        unset($fields['baddress2']);
+//        unset($fields['bcity']);
+//        unset($fields['bstate']);
+//        unset($fields['bzipcode']);
+//        unset($fields['bcountry']);
+//        unset($fields['bphone']);
         $fields['msisdn'] = true;
+        unset($fields["bfirstname"]);
+        unset($fields["blastname"]);
+        unset($fields["baddress1"]);
+        unset($fields["bcity"]);
+        unset($fields["bstate"]);
+        unset($fields["bzipcode"]);
+        unset($fields["bphone"]);
+        unset($fields["bemail"]);
+        unset($fields["bcountry"]);
+        unset($fields["CardType"]);
+        unset($fields["AccountNumber"]);
+        unset($fields["ExpirationMonth"]);
+        unset($fields["ExpirationYear"]);
+        unset($fields["CVV"]);
         return $fields;
     }
 
@@ -584,7 +599,7 @@ class PMProGateway_mpesa extends PMProGateway
             // the amount is not fully paid return error to checkout page
             //$order->status = "error";
             $order->errorcode = "transaction failed 1";
-            $order->error = "transaction failed 2";
+            $order->error = "transaction failed 2 $mpesa_msisdn";
             $order->shorterror = "transaction failed 3";
             return false;
 
@@ -608,177 +623,6 @@ class PMProGateway_mpesa extends PMProGateway
         $order->subscription_transaction_id = "mpesa" . $order->code;
         return true;
     }
-    function update(&$order)
-    {
-        //define variables to send
-        $gateway_environment = $order->gateway_environment;
-        if (empty($gateway_environment))
-            $gateway_environment = pmpro_getOption("gateway_environment");
-        if ($gateway_environment == "live")
-            $host = "api.authorize.net";
-        else
-            $host = "apitest.authorize.net";
-
-        $path = "/xml/v1/request.api";
-
-        $loginname = pmpro_getOption("loginname");
-        $transactionkey = pmpro_getOption("transactionkey");
-
-        //$amount = $order->PaymentAmount;
-        $refId = $order->code;
-        $subscriptionId = $order->subscription_transaction_id;
-
-        $cardNumber = $order->accountnumber;
-        $expirationDate = $order->ExpirationDate_YdashM;
-        $cardCode = $order->CVV2;
-
-        $firstName = $order->FirstName;
-        $lastName = $order->LastName;
-
-        //do address stuff then?
-        $address = $order->Address1;
-        if (!empty($order->Address2))
-            $address .= "\n" . $order->Address2;
-        $city = $order->billing->city;
-        $state = $order->billing->state;
-        $zip = $order->billing->zip;
-        $country = $order->billing->country;
-
-        //customer stuff
-        $customer_email = $order->Email;
-        if (strpos($order->billing->phone, "+") === false)
-            $customer_phone = $order->billing->phone;
-
-
-        //build xml to post
-        $this->content =
-            "<?xml version=\"1.0\" encoding=\"utf-8\"?>" .
-            "<ARBUpdateSubscriptionRequest xmlns=\"AnetApi/xml/v1/schema/AnetApiSchema.xsd\">" .
-            "<merchantAuthentication>" .
-            "<name><![CDATA[" . $loginname . "]]></name>" .
-            "<transactionKey>" . $transactionkey . "</transactionKey>" .
-            "</merchantAuthentication>" .
-            "<refId>" . substr($refId, 0, 20) . "</refId>" .
-            "<subscriptionId>" . $subscriptionId . "</subscriptionId>" .
-            "<subscription>" .
-            "<payment>" .
-            "<creditCard>" .
-            "<cardNumber>" . $cardNumber . "</cardNumber>" .
-            "<expirationDate>" . $expirationDate . "</expirationDate>";
-        if (!empty($cardCode))
-            $this->content .= "<cardCode>" . $cardCode . "</cardCode>";
-        $this->content .=
-            "</creditCard>" .
-            "</payment>" .
-            "<customer>" .
-            "<email>" . substr($customer_email, 0, 255) . "</email>" .
-            "<phoneNumber>" . substr(str_replace("1 (", "(", formatPhone($customer_phone)), 0, 25) . "</phoneNumber>" .
-            "</customer>" .
-            "<billTo>" .
-            "<firstName><![CDATA[" . substr($firstName, 0, 50) . "]]></firstName>" .
-            "<lastName><![CDATA[" . substr($lastName, 0, 50) . "]]></lastName>" .
-            "<address><![CDATA[" . substr($address, 0, 60) . "]]></address>" .
-            "<city><![CDATA[" . substr($city, 0, 40) . "]]></city>" .
-            "<state><![CDATA[" . substr($state, 0, 2) . "]]></state>" .
-            "<zip>" . substr($zip, 0, 20) . "</zip>" .
-            "<country>" . substr($country, 0, 60) . "</country>" .
-            "</billTo>" .
-            "</subscription>" .
-            "</ARBUpdateSubscriptionRequest>";
-
-        //send the xml via curl
-        $this->response = $this->send_request_via_curl($host, $path, $this->content);
-        //if curl is unavilable you can try using fsockopen
-        /*
-        $response = send_request_via_fsockopen($host,$path,$order->content);
-        */
-
-
-        if (!empty($this->response)) {
-            list ($resultCode, $code, $text, $subscriptionId) = $this->parse_return($this->response);
-
-            if ($resultCode == "Ok" || $code == "Ok") {
-                return true;
-            } else {
-                $order->status = "error";
-                $order->errorcode = $code;
-                $order->error = $text;
-                $order->shorterror = $text;
-                return false;
-            }
-        } else {
-            $order->status = "error";
-            $order->error = "Could not connect to Authorize.net";
-            $order->shorterror = "Could not connect to Authorize.net";
-            return false;
-        }
-    }
-
-    function cancel(&$order)
-    {
-        //define variables to send
-        if (!empty($order->subscription_transaction_id))
-            $subscriptionId = $order->subscription_transaction_id;
-        else
-            $subscriptionId = "";
-        $loginname = pmpro_getOption("loginname");
-        $transactionkey = pmpro_getOption("transactionkey");
-
-        if (!empty($order->gateway_environment))
-            $gateway_environment = $order->gateway_environment;
-        else
-            $gateway_environment = pmpro_getOption("gateway_environment");
-
-        if ($gateway_environment == "live")
-            $host = "api.authorize.net";
-        else
-            $host = "apitest.authorize.net";
-
-        $path = "/xml/v1/request.api";
-
-        if (!$subscriptionId || !$loginname || !$transactionkey)
-            return false;
-
-        //build xml to post
-        $content =
-            "<?xml version=\"1.0\" encoding=\"utf-8\"?>" .
-            "<ARBCancelSubscriptionRequest xmlns=\"AnetApi/xml/v1/schema/AnetApiSchema.xsd\">" .
-            "<merchantAuthentication>" .
-            "<name>" . $loginname . "</name>" .
-            "<transactionKey>" . $transactionkey . "</transactionKey>" .
-            "</merchantAuthentication>" .
-            "<subscriptionId>" . $subscriptionId . "</subscriptionId>" .
-            "</ARBCancelSubscriptionRequest>";
-
-        //send the xml via curl
-        $response = $this->send_request_via_curl($host, $path, $content);
-        //if curl is unavilable you can try using fsockopen
-        /*
-        $response = send_request_via_fsockopen($host,$path,$content);
-        */
-
-        //if the connection and send worked $response holds the return from Authorize.net
-        if ($response) {
-            list ($resultCode, $code, $text, $subscriptionId) = $this->parse_return($response);
-
-            if ($resultCode == "Ok" || $code == "Ok") {
-                $order->updateStatus("cancelled");
-                return true;
-            } else {
-                //$order->status = "error";
-                $order->errorcode = $code;
-                $order->error = $text;
-                $order->shorterror = $text;
-                return false;
-            }
-        } else {
-            $order->status = "error";
-            $order->error = __("Could not connect to Authorize.net", 'paid-memberships-pro');
-            $order->shorterror = __("Could not connect to Authorize.net", 'paid-memberships-pro');
-            return false;
-        }
-    }
-
 
 
 }

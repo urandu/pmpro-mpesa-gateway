@@ -21,7 +21,7 @@ function mpesa_install()
         time datetime DEFAULT CURRENT_TIMESTAMP,
         user_id varchar(255) NOT NULL,
         amount float NOT NULL,
-        order_id varchar(255),
+        order_id varchar(255) NOT NULL DEFAULT -1,
         payload longtext
 	  ) $charset_collate;";
 
@@ -31,7 +31,7 @@ function mpesa_install()
     add_option('mpesa_db_version', $mpesa_db_version);
 }
 
-register_activation_hook( __FILE__, 'mpesa_install' );
+
 /**
  * PMProGateway_gatewayname Class
  *
@@ -209,6 +209,14 @@ class PMProGateway_mpesa extends PMProGateway
      */
     static function pmpro_checkout_order($morder)
     {
+        //load up values
+        if (isset($_REQUEST['msisdn']))
+            $mpesa_msisdn = sanitize_text_field($_REQUEST['msisdn']);
+        else
+            $mpesa_msisdn = "";
+
+        $morder->mpesa_msisdn = $mpesa_msisdn;
+
         return $morder;
     }
 
@@ -255,7 +263,7 @@ class PMProGateway_mpesa extends PMProGateway
                 <?php
 
                 print("<pre>");
-                $amount =$pmpro_level->initial_payment;
+                $amount = $pmpro_level->initial_payment;
 
                 print("</pre>");
                 ?>
@@ -292,17 +300,32 @@ class PMProGateway_mpesa extends PMProGateway
      */
     static function pmpro_required_billing_fields($fields)
     {
-        unset($fields['CVV']);
-        unset($fields['bfirstname']);
-        unset($fields['blastname']);
-        unset($fields['baddress1']);
-        unset($fields['baddress2']);
-        unset($fields['bcity']);
-        unset($fields['bstate']);
-        unset($fields['bzipcode']);
-        unset($fields['bcountry']);
-        unset($fields['bphone']);
+//        unset($fields['CVV']);
+//        unset($fields['cvv']);
+//        unset($fields['bfirstname']);
+//        unset($fields['blastname']);
+//        unset($fields['baddress1']);
+//        unset($fields['baddress2']);
+//        unset($fields['bcity']);
+//        unset($fields['bstate']);
+//        unset($fields['bzipcode']);
+//        unset($fields['bcountry']);
+//        unset($fields['bphone']);
         $fields['msisdn'] = true;
+        unset($fields["bfirstname"]);
+        unset($fields["blastname"]);
+        unset($fields["baddress1"]);
+        unset($fields["bcity"]);
+        unset($fields["bstate"]);
+        unset($fields["bzipcode"]);
+        unset($fields["bphone"]);
+        unset($fields["bemail"]);
+        unset($fields["bcountry"]);
+        unset($fields["CardType"]);
+        unset($fields["AccountNumber"]);
+        unset($fields["ExpirationMonth"]);
+        unset($fields["ExpirationYear"]);
+        unset($fields["CVV"]);
         return $fields;
     }
 
@@ -354,17 +377,20 @@ class PMProGateway_mpesa extends PMProGateway
     {
     }
 
-
+    /**
+     * Process checkout.
+     *
+     */
     function process(&$order)
     {
         //check for initial payment
         if (floatval($order->InitialPayment) == 0) {
             //auth first, then process
             if ($this->authorize($order)) {
-                $this->void($order);
+                //$this->void($order);
                 if (!pmpro_isLevelTrial($order->membership_level)) {
-                    //subscription will start today with a 1 period trial (initial payment charged separately)
-                    $order->ProfileStartDate = date("Y-m-d") . "T0:0:0";
+                    //subscription will start today with a 1 period trial
+                    $order->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
                     $order->TrialBillingPeriod = $order->BillingPeriod;
                     $order->TrialBillingFrequency = $order->BillingFrequency;
                     $order->TrialBillingCycles = 1;
@@ -375,22 +401,22 @@ class PMProGateway_mpesa extends PMProGateway
                         $order->TotalBillingCycles++;
                 } elseif ($order->InitialPayment == 0 && $order->TrialAmount == 0) {
                     //it has a trial, but the amount is the same as the initial payment, so we can squeeze it in there
-                    $order->ProfileStartDate = date("Y-m-d") . "T0:0:0";
+                    $order->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
                     $order->TrialBillingCycles++;
 
                     //add a billing cycle to make up for the trial, if applicable
-                    if ($order->TotalBillingCycles)
+                    if (!empty($order->TotalBillingCycles))
                         $order->TotalBillingCycles++;
                 } else {
                     //add a period to the start date to account for the initial payment
-                    $order->ProfileStartDate = date("Y-m-d", strtotime("+ " . $order->BillingFrequency . " " . $order->BillingPeriod, current_time("timestamp"))) . "T0:0:0";
+                    $order->ProfileStartDate = date_i18n("Y-m-d", strtotime("+ " . $order->BillingFrequency . " " . $order->BillingPeriod, current_time("timestamp"))) . "T0:0:0";
                 }
 
                 $order->ProfileStartDate = apply_filters("pmpro_profile_start_date", $order->ProfileStartDate, $order);
                 return $this->subscribe($order);
             } else {
                 if (empty($order->error))
-                    $order->error = __("Unknown error: Authorization failed.", "pmpro");
+                    $order->error = __("Unknown error: Authorization failed.", 'paid-memberships-pro');
                 return false;
             }
         } else {
@@ -400,7 +426,7 @@ class PMProGateway_mpesa extends PMProGateway
                 if (pmpro_isLevelRecurring($order->membership_level)) {
                     if (!pmpro_isLevelTrial($order->membership_level)) {
                         //subscription will start today with a 1 period trial
-                        $order->ProfileStartDate = date("Y-m-d") . "T0:0:0";
+                        $order->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
                         $order->TrialBillingPeriod = $order->BillingPeriod;
                         $order->TrialBillingFrequency = $order->BillingFrequency;
                         $order->TrialBillingCycles = 1;
@@ -411,7 +437,7 @@ class PMProGateway_mpesa extends PMProGateway
                             $order->TotalBillingCycles++;
                     } elseif ($order->InitialPayment == 0 && $order->TrialAmount == 0) {
                         //it has a trial, but the amount is the same as the initial payment, so we can squeeze it in there
-                        $order->ProfileStartDate = date("Y-m-d") . "T0:0:0";
+                        $order->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
                         $order->TrialBillingCycles++;
 
                         //add a billing cycle to make up for the trial, if applicable
@@ -419,7 +445,7 @@ class PMProGateway_mpesa extends PMProGateway
                             $order->TotalBillingCycles++;
                     } else {
                         //add a period to the start date to account for the initial payment
-                        $order->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod, current_time("timestamp"))) . "T0:0:0";
+                        $order->ProfileStartDate = date_i18n("Y-m-d", strtotime("+ " . $order->BillingFrequency . " " . $order->BillingPeriod, current_time("timestamp"))) . "T0:0:0";
                     }
 
                     $order->ProfileStartDate = apply_filters("pmpro_profile_start_date", $order->ProfileStartDate, $order);
@@ -428,12 +454,11 @@ class PMProGateway_mpesa extends PMProGateway
                     } else {
                         if ($this->void($order)) {
                             if (!$order->error)
-                                $order->error = __("Unknown error: Payment failed.", "pmpro");
+                                $order->error = __("Unknown error: Payment failed.", 'paid-memberships-pro');
                         } else {
                             if (!$order->error)
-                                $order->error = __("Unknown error: Payment failed.", "pmpro");
-
-                            $order->error .= " " . __("A partial payment was made that we could not void. Please contact the site owner immediately to correct this.", "pmpro");
+                                $order->error = __("Unknown error: Payment failed.", 'paid-memberships-pro');
+                            $order->error .= " " . __("A partial payment was made that we could not void. Please contact the site owner immediately to correct this.", 'paid-memberships-pro');
                         }
 
                         return false;
@@ -445,84 +470,147 @@ class PMProGateway_mpesa extends PMProGateway
                 }
             } else {
                 if (empty($order->error))
-                    $order->error = __("Unknown error: Payment failed.", "pmpro");
+                    $order->error = __("Unknown error: Payment failed.", 'paid-memberships-pro');
 
                 return false;
             }
         }
     }
 
-    /*
-        Run an authorization at the gateway.
-
-        Required if supporting recurring subscriptions
-        since we'll authorize $1 for subscriptions
-        with a $0 initial payment.
-    */
     function authorize(&$order)
     {
+        // because the initial payment is 0 shillings, we shall always return true
+        if (empty($order->code))
+            $order->code = $order->getRandomCode();
+
         //create a code for the order
         if (empty($order->code))
             $order->code = $order->getRandomCode();
 
-        //code to authorize with gateway and test results would go here
 
         //simulate a successful authorization
-        $order->payment_transaction_id = "TEST" . $order->code;
+        $order->payment_transaction_id = "mpesa_" . $order->code;
         $order->updateStatus("authorized");
         return true;
+
     }
 
-    /*
-        Void a transaction at the gateway.
+//    function void(&$order)
+//    {
+//        if(empty($order->payment_transaction_id))
+//            return false;
+//
+//        if(empty($order->gateway_environment))
+//            $gateway_environment = pmpro_getOption("gateway_environment");
+//        else
+//            $gateway_environment = $order->gateway_environment;
+//        if($gateway_environment == "live")
+//            $host = "secure.authorize.net";
+//        else
+//            $host = "test.authorize.net";
+//
+//        $path = "/gateway/transact.dll";
+//        $post_url = "https://" . $host . $path;
+//
+//        $post_url = apply_filters("pmpro_authorizenet_post_url", $post_url, $gateway_environment);
+//
+//        $post_values = array(
+//
+//            // the API Login ID and Transaction Key must be replaced with valid values
+//            "x_login"			=> pmpro_getOption("loginname"),
+//            "x_tran_key"		=> pmpro_getOption("transactionkey"),
+//
+//            "x_version"			=> "3.1",
+//            "x_delim_data"		=> "TRUE",
+//            "x_delim_char"		=> "|",
+//            "x_relay_response"	=> "FALSE",
+//
+//            "x_type"			=> "VOID",
+//            "x_trans_id"			=> $order->payment_transaction_id
+//            // Additional fields can be added here as outlined in the AIM integration
+//            // guide at: http://developer.authorize.net
+//        );
+//
+//        // This section takes the input fields and converts them to the proper format
+//        // for an http post.  For example: "x_login=username&x_tran_key=a1B2c3D4"
+//        $post_string = "";
+//        foreach( $post_values as $key => $value )
+//        { $post_string .= "$key=" . urlencode( str_replace("#", "%23", $value) ) . "&"; }
+//        $post_string = rtrim( $post_string, "& " );
+//
+//        //curl
+//        $request = curl_init($post_url); // initiate curl object
+//        curl_setopt($request, CURLOPT_HEADER, 0); // set to 0 to eliminate header info from response
+//        curl_setopt($request, CURLOPT_RETURNTRANSFER, 1); // Returns response data instead of TRUE(1)
+//        curl_setopt($request, CURLOPT_POSTFIELDS, $post_string); // use HTTP POST to send form data
+//        curl_setopt($request, CURLOPT_SSL_VERIFYPEER, FALSE); // uncomment this line if you get no gateway response.
+//        $post_response = curl_exec($request); // execute curl post and store results in $post_response
+//        // additional options may be required depending upon your server configuration
+//        // you can find documentation on curl options at http://www.php.net/curl_setopt
+//        curl_close ($request); // close curl object
+//
+//        // This line takes the response and breaks it into an array using the specified delimiting character
+//        $response_array = explode($post_values["x_delim_char"],$post_response);
+//        if($response_array[0] == 1)
+//        {
+//            $order->payment_transaction_id = $response_array[4];
+//            $order->updateStatus("voided");
+//            return true;
+//        }
+//        else
+//        {
+//            //$order->status = "error";
+//            $order->errorcode = $response_array[2];
+//            $order->error = $response_array[3];
+//            $order->shorterror = $response_array[3];
+//            return false;
+//        }
+//    }
 
-        Required if supporting recurring transactions
-        as we void the authorization test on subs
-        with a $0 initial payment and void the initial
-        payment if subscription setup fails.
-    */
-    function void(&$order)
-    {
-        //need a transaction id
-        if (empty($order->payment_transaction_id))
-            return false;
-
-        //code to void an order at the gateway and test results would go here
-
-        //simulate a successful void
-        $order->payment_transaction_id = "TEST" . $order->code;
-        $order->updateStatus("voided");
-        return true;
-    }
-
-    /*
-        Make a charge at the gateway.
-
-        Required to charge initial payments.
-    */
     function charge(&$order)
     {
-        //create a code for the order
         if (empty($order->code))
             $order->code = $order->getRandomCode();
 
-        //code to charge with gateway and test results would go here
+        //what amount to charge?
+        $amount = $order->InitialPayment;
 
-        //simulate a successful charge
-        $order->payment_transaction_id = "TEST" . $order->code;
-        $order->updateStatus("success");
-        return true;
+        //tax
+        $order->subtotal = $amount;
+        $tax = $order->getTax(true);
+        $amount = round((float)$order->subtotal + (float)$tax, 2);
+
+
+        //check db for transaction associated with phone_number
+        global $wpdb;
+
+        //to use account_number for paybills.
+        $mpesa_msisdn = $order->mpesa_msisdn;
+        $table_name = $wpdb->prefix . 'mpesa_pmpro';
+        $total_amount_paid_by_msisdn = $wpdb->get_var("SELECT SUM(amount) AS total_amount FROM $table_name WHERE msisdn=$mpesa_msisdn AND order_id=-1;");
+
+        if ($total_amount_paid_by_msisdn >= $amount) {
+            //payment successful
+            //todo use-mpesa-transaction_id
+            $order->payment_transaction_id = "MPESA_" . $order->getRandomCode();;
+            $order->updateStatus("success");
+            return true;
+        } else {
+            // the amount is not fully paid return error to checkout page
+            //$order->status = "error";
+            $order->errorcode = "transaction failed 1";
+            $order->error = "transaction failed 2 $mpesa_msisdn";
+            $order->shorterror = "transaction failed 3";
+            return false;
+
+        }
+
     }
 
-    /*
-        Setup a subscription at the gateway.
-
-        Required if supporting recurring subscriptions.
-    */
     function subscribe(&$order)
     {
         //create a code for the order
-        if (empty($order->code))
+        if(empty($order->code))
             $order->code = $order->getRandomCode();
 
         //filter order before subscription. use with care.
@@ -532,71 +620,255 @@ class PMProGateway_mpesa extends PMProGateway
 
         //simulate a successful subscription processing
         $order->status = "success";
-        $order->subscription_transaction_id = "TEST" . $order->code;
+        $order->subscription_transaction_id = "mpesa" . $order->code;
         return true;
     }
 
-    /*
-        Update billing at the gateway.
 
-        Required if supporting recurring subscriptions and
-        processing credit cards on site.
-    */
-    function update(&$order)
-    {
-        //code to update billing info on a recurring subscription at the gateway and test results would go here
-
-        //simulate a successful billing update
-        return true;
-    }
-
-    /*
-        Cancel a subscription at the gateway.
-
-        Required if supporting recurring subscriptions.
-    */
-    function cancel(&$order)
-    {
-        //require a subscription id
-        if (empty($order->subscription_transaction_id))
-            return false;
-
-        //code to cancel a subscription at the gateway and test results would go here
-
-        //simulate a successful cancel
-        $order->updateStatus("cancelled");
-        return true;
-    }
-
-    /*
-        Get subscription status at the gateway.
-
-        Optional if you have code that needs this or
-        want to support addons that use this.
-    */
-    function getSubscriptionStatus(&$order)
-    {
-        //require a subscription id
-        if (empty($order->subscription_transaction_id))
-            return false;
-
-        //code to get subscription status at the gateway and test results would go here
-
-        //this looks different for each gateway, but generally an array of some sort
-        return array();
-    }
-
-    /*
-        Get transaction status at the gateway.
-
-        Optional if you have code that needs this or
-        want to support addons that use this.
-    */
-    function getTransactionStatus(&$order)
-    {
-        //code to get transaction status at the gateway and test results would go here
-
-        //this looks different for each gateway, but generally an array of some sort
-        return array();
-    }
 }
+//
+//    function process(&$order)
+//    {
+//        //check for initial payment
+//        if (floatval($order->InitialPayment) == 0) {
+//            //auth first, then process
+//            if ($this->authorize($order)) {
+//                $this->void($order);
+//                if (!pmpro_isLevelTrial($order->membership_level)) {
+//                    //subscription will start today with a 1 period trial (initial payment charged separately)
+//                    $order->ProfileStartDate = date("Y-m-d") . "T0:0:0";
+//                    $order->TrialBillingPeriod = $order->BillingPeriod;
+//                    $order->TrialBillingFrequency = $order->BillingFrequency;
+//                    $order->TrialBillingCycles = 1;
+//                    $order->TrialAmount = 0;
+//
+//                    //add a billing cycle to make up for the trial, if applicable
+//                    if (!empty($order->TotalBillingCycles))
+//                        $order->TotalBillingCycles++;
+//                } elseif ($order->InitialPayment == 0 && $order->TrialAmount == 0) {
+//                    //it has a trial, but the amount is the same as the initial payment, so we can squeeze it in there
+//                    $order->ProfileStartDate = date("Y-m-d") . "T0:0:0";
+//                    $order->TrialBillingCycles++;
+//
+//                    //add a billing cycle to make up for the trial, if applicable
+//                    if ($order->TotalBillingCycles)
+//                        $order->TotalBillingCycles++;
+//                } else {
+//                    //add a period to the start date to account for the initial payment
+//                    $order->ProfileStartDate = date("Y-m-d", strtotime("+ " . $order->BillingFrequency . " " . $order->BillingPeriod, current_time("timestamp"))) . "T0:0:0";
+//                }
+//
+//                $order->ProfileStartDate = apply_filters("pmpro_profile_start_date", $order->ProfileStartDate, $order);
+//                return $this->subscribe($order);
+//            } else {
+//                if (empty($order->error))
+//                    $order->error = __("Unknown error: Authorization failed.", "pmpro");
+//                return false;
+//            }
+//        } else {
+//            //charge first payment
+//            if ($this->charge($order)) {
+//                //set up recurring billing
+//                if (pmpro_isLevelRecurring($order->membership_level)) {
+//                    if (!pmpro_isLevelTrial($order->membership_level)) {
+//                        //subscription will start today with a 1 period trial
+//                        $order->ProfileStartDate = date("Y-m-d") . "T0:0:0";
+//                        $order->TrialBillingPeriod = $order->BillingPeriod;
+//                        $order->TrialBillingFrequency = $order->BillingFrequency;
+//                        $order->TrialBillingCycles = 1;
+//                        $order->TrialAmount = 0;
+//
+//                        //add a billing cycle to make up for the trial, if applicable
+//                        if (!empty($order->TotalBillingCycles))
+//                            $order->TotalBillingCycles++;
+//                    } elseif ($order->InitialPayment == 0 && $order->TrialAmount == 0) {
+//                        //it has a trial, but the amount is the same as the initial payment, so we can squeeze it in there
+//                        $order->ProfileStartDate = date("Y-m-d") . "T0:0:0";
+//                        $order->TrialBillingCycles++;
+//
+//                        //add a billing cycle to make up for the trial, if applicable
+//                        if (!empty($order->TotalBillingCycles))
+//                            $order->TotalBillingCycles++;
+//                    } else {
+//                        //add a period to the start date to account for the initial payment
+//                        $order->ProfileStartDate = date("Y-m-d", strtotime("+ " . $this->BillingFrequency . " " . $this->BillingPeriod, current_time("timestamp"))) . "T0:0:0";
+//                    }
+//
+//                    $order->ProfileStartDate = apply_filters("pmpro_profile_start_date", $order->ProfileStartDate, $order);
+//                    if ($this->subscribe($order)) {
+//                        return true;
+//                    } else {
+//                        if ($this->void($order)) {
+//                            if (!$order->error)
+//                                $order->error = __("Unknown error: Payment failed.", "pmpro");
+//                        } else {
+//                            if (!$order->error)
+//                                $order->error = __("Unknown error: Payment failed.", "pmpro");
+//
+//                            $order->error .= " " . __("A partial payment was made that we could not void. Please contact the site owner immediately to correct this.", "pmpro");
+//                        }
+//
+//                        return false;
+//                    }
+//                } else {
+//                    //only a one time charge
+//                    $order->status = "success";    //saved on checkout page
+//                    return true;
+//                }
+//            } else {
+//                if (empty($order->error))
+//                    $order->error = __("Unknown error: Payment failed.", "pmpro");
+//
+//                return false;
+//            }
+//        }
+//    }
+//
+//    /*
+//        Run an authorization at the gateway.
+//
+//        Required if supporting recurring subscriptions
+//        since we'll authorize $1 for subscriptions
+//        with a $0 initial payment.
+//    */
+//    function authorize(&$order)
+//    {
+//        //create a code for the order
+//        if (empty($order->code))
+//            $order->code = $order->getRandomCode();
+//
+//        //code to authorize with gateway and test results would go here
+//
+//        //simulate a successful authorization
+//        $order->payment_transaction_id = "TEST" . $order->code;
+//        $order->updateStatus("authorized");
+//        return true;
+//    }
+//
+//    /*
+//        Void a transaction at the gateway.
+//
+//        Required if supporting recurring transactions
+//        as we void the authorization test on subs
+//        with a $0 initial payment and void the initial
+//        payment if subscription setup fails.
+//    */
+//    function void(&$order)
+//    {
+//        //need a transaction id
+//        if (empty($order->payment_transaction_id))
+//            return false;
+//
+//        //code to void an order at the gateway and test results would go here
+//
+//        //simulate a successful void
+//        $order->payment_transaction_id = "TEST" . $order->code;
+//        $order->updateStatus("voided");
+//        return true;
+//    }
+//
+//    /*
+//        Make a charge at the gateway.
+//
+//        Required to charge initial payments.
+//    */
+//    function charge(&$order)
+//    {
+//        //create a code for the order
+//        if (empty($order->code))
+//            $order->code = $order->getRandomCode();
+//
+//        //code to charge with gateway and test results would go here
+//
+//        //simulate a successful charge
+//        $order->payment_transaction_id = "TEST" . $order->code;
+//        $order->updateStatus("success");
+//        return true;
+//    }
+//
+//    /*
+//        Setup a subscription at the gateway.
+//
+//        Required if supporting recurring subscriptions.
+//    */
+//    function subscribe(&$order)
+//    {
+//        //create a code for the order
+//        if (empty($order->code))
+//            $order->code = $order->getRandomCode();
+//
+//        //filter order before subscription. use with care.
+//        $order = apply_filters("pmpro_subscribe_order", $order, $this);
+//
+//        //code to setup a recurring subscription with the gateway and test results would go here
+//
+//        //simulate a successful subscription processing
+//        $order->status = "success";
+//        $order->subscription_transaction_id = "TEST" . $order->code;
+//        return true;
+//    }
+//
+//    /*
+//        Update billing at the gateway.
+//
+//        Required if supporting recurring subscriptions and
+//        processing credit cards on site.
+//    */
+//    function update(&$order)
+//    {
+//        //code to update billing info on a recurring subscription at the gateway and test results would go here
+//
+//        //simulate a successful billing update
+//        return true;
+//    }
+//
+//    /*
+//        Cancel a subscription at the gateway.
+//
+//        Required if supporting recurring subscriptions.
+//    */
+//    function cancel(&$order)
+//    {
+//        //require a subscription id
+//        if (empty($order->subscription_transaction_id))
+//            return false;
+//
+//        //code to cancel a subscription at the gateway and test results would go here
+//
+//        //simulate a successful cancel
+//        $order->updateStatus("cancelled");
+//        return true;
+//    }
+//
+//    /*
+//        Get subscription status at the gateway.
+//
+//        Optional if you have code that needs this or
+//        want to support addons that use this.
+//    */
+//    function getSubscriptionStatus(&$order)
+//    {
+//        //require a subscription id
+//        if (empty($order->subscription_transaction_id))
+//            return false;
+//
+//        //code to get subscription status at the gateway and test results would go here
+//
+//        //this looks different for each gateway, but generally an array of some sort
+//        return array();
+//    }
+//
+//    /*
+//        Get transaction status at the gateway.
+//
+//        Optional if you have code that needs this or
+//        want to support addons that use this.
+//    */
+//    function getTransactionStatus(&$order)
+//    {
+//        //code to get transaction status at the gateway and test results would go here
+//
+//        //this looks different for each gateway, but generally an array of some sort
+//        return array();
+//    }
+//}
