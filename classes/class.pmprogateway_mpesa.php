@@ -860,4 +860,3 @@ class PMProGateway_mpesa extends PMProGateway
 //
 //    /*
 //        Get transaction status at the gateway.
-/
