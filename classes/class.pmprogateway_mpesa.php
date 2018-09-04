@@ -855,5 +855,3 @@ class PMProGateway_mpesa extends PMProGateway
 //        //code to get subscription status at the gateway and test results would go here
 //
 //        //this looks different for each gateway, but generally an array of some sort
-//        return array();
-    }
