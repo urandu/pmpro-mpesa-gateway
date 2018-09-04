@@ -557,20 +557,6 @@ class PMProGateway_mpesa extends PMProGateway
         if (empty($order->code))
             $order->code = $order->getRandomCode();
 
-        if (!empty($order->gateway_environment))
-            $gateway_environment = $order->gateway_environment;
-        if (empty($gateway_environment))
-            $gateway_environment = pmpro_getOption("gateway_environment");
-        if ($gateway_environment == "live")
-            $host = "secure.authorize.net";
-        else
-            $host = "test.authorize.net";
-
-        $path = "/gateway/transact.dll";
-        $post_url = "https://" . $host . $path;
-
-        $post_url = apply_filters("pmpro_authorizenet_post_url", $post_url, $gateway_environment);
-
         //what amount to charge?
         $amount = $order->InitialPayment;
 
@@ -603,189 +589,25 @@ class PMProGateway_mpesa extends PMProGateway
             return false;
 
         }
-        
+
     }
 
     function subscribe(&$order)
     {
-        //define variables to send
-
-        if (empty($order->code))
+        //create a code for the order
+        if(empty($order->code))
             $order->code = $order->getRandomCode();
 
         //filter order before subscription. use with care.
         $order = apply_filters("pmpro_subscribe_order", $order, $this);
 
-        if (!empty($order->gateway_environment))
-            $gateway_environment = $order->gateway_environment;
-        if (empty($gateway_environment))
-            $gateway_environment = pmpro_getOption("gateway_environment");
-        if ($gateway_environment == "live")
-            $host = "api.authorize.net";
-        else
-            $host = "apitest.authorize.net";
+        //code to setup a recurring subscription with the gateway and test results would go here
 
-        $path = "/xml/v1/request.api";
-
-        $loginname = pmpro_getOption("loginname");
-        $transactionkey = pmpro_getOption("transactionkey");
-
-        $amount = $order->PaymentAmount;
-        $refId = $order->code;
-        $name = $order->membership_name;
-        $length = (int)$order->BillingFrequency;
-
-        if ($order->BillingPeriod == "Month")
-            $unit = "months";
-        elseif ($order->BillingPeriod == "Day")
-            $unit = "days";
-        elseif ($order->BillingPeriod == "Year" && $order->BillingFrequency == 1) {
-            $unit = "months";
-            $length = 12;
-        } elseif ($order->BillingPeriod == "Week") {
-            $unit = "days";
-            $length = $length * 7;    //converting weeks to days
-        } else
-            return false;    //authorize.net only supports months and days
-
-        $startDate = substr($order->ProfileStartDate, 0, 10);
-        if (!empty($order->TotalBillingCycles))
-            $totalOccurrences = (int)$order->TotalBillingCycles;
-        if (empty($totalOccurrences))
-            $totalOccurrences = 9999;
-        if (isset($order->TrialBillingCycles))
-            $trialOccurrences = (int)$order->TrialBillingCycles;
-        else
-            $trialOccurrences = 0;
-        if (isset($order->TrialAmount))
-            $trialAmount = $order->TrialAmount;
-        else
-            $trialAmount = NULL;
-
-        //taxes
-        $amount_tax = $order->getTaxForPrice($amount);
-        $trial_tax = $order->getTaxForPrice($trialAmount);
-
-        $amount = round((float)$amount + (float)$amount_tax, 2);
-        $trialAmount = round((float)$trialAmount + (float)$trial_tax, 2);
-
-        //authorize.net doesn't support different periods between trial and actual
-
-        if (!empty($order->TrialBillingPeriod) && $order->TrialBillingPeriod != $order->BillingPeriod) {
-            echo "F";
-            return false;
-        }
-
-        $cardNumber = $order->accountnumber;
-        $expirationDate = $order->ExpirationDate_YdashM;
-        $cardCode = $order->CVV2;
-
-        $firstName = $order->FirstName;
-        $lastName = $order->LastName;
-
-        //do address stuff then?
-        $address = $order->Address1;
-        if (!empty($order->Address2))
-            $address .= "\n" . $order->Address2;
-        $city = $order->billing->city;
-        $state = $order->billing->state;
-        $zip = $order->billing->zip;
-        $country = $order->billing->country;
-
-        //customer stuff
-        $customer_email = $order->Email;
-        if (strpos($order->billing->phone, "+") === false)
-            $customer_phone = $order->billing->phone;
-        else
-            $customer_phone = "";
-
-        //make sure the phone is in an okay format
-        $customer_phone = preg_replace("/[^0-9]/", "", $customer_phone);
-        if (strlen($customer_phone) > 10)
-            $customer_phone = "";
-
-        //build xml to post
-        $this->content =
-            "<?xml version=\"1.0\" encoding=\"utf-8\"?>" .
-            "<ARBCreateSubscriptionRequest xmlns=\"AnetApi/xml/v1/schema/AnetApiSchema.xsd\">" .
-            "<merchantAuthentication>" .
-            "<name>" . $loginname . "</name>" .
-            "<transactionKey>" . $transactionkey . "</transactionKey>" .
-            "</merchantAuthentication>" .
-            "<refId><![CDATA[" . substr($refId, 0, 20) . "]]></refId>" .
-            "<subscription>" .
-            "<name><![CDATA[" . substr($name, 0, 50) . "]]></name>" .
-            "<paymentSchedule>" .
-            "<interval>" .
-            "<length>" . $length . "</length>" .
-            "<unit>" . $unit . "</unit>" .
-            "</interval>" .
-            "<startDate>" . $startDate . "</startDate>" .
-            "<totalOccurrences>" . $totalOccurrences . "</totalOccurrences>";
-        if (!empty($trialOccurrences))
-            $this->content .=
-                "<trialOccurrences>" . $trialOccurrences . "</trialOccurrences>";
-        $this->content .=
-            "</paymentSchedule>" .
-            "<amount>" . $amount . "</amount>";
-        if (!empty($trialOccurrences))
-            $this->content .=
-                "<trialAmount>" . $trialAmount . "</trialAmount>";
-        $this->content .=
-            "<payment>" .
-            "<creditCard>" .
-            "<cardNumber>" . $cardNumber . "</cardNumber>" .
-            "<expirationDate>" . $expirationDate . "</expirationDate>";
-        if (!empty($cardCode))
-            $this->content .= "<cardCode>" . $cardCode . "</cardCode>";
-        $this->content .=
-            "</creditCard>" .
-            "</payment>" .
-            "<order><invoiceNumber>" . substr($order->code, 0, 20) . "</invoiceNumber></order>" .
-            "<customer>" .
-            "<email>" . substr($customer_email, 0, 255) . "</email>" .
-            "<phoneNumber>" . substr($customer_phone, 0, 25) . "</phoneNumber>" .
-            "</customer>" .
-            "<billTo>" .
-            "<firstName><![CDATA[" . substr($firstName, 0, 50) . "]]></firstName>" .
-            "<lastName><![CDATA[" . substr($lastName, 0, 50) . "]]></lastName>" .
-            "<address><![CDATA[" . substr($address, 0, 60) . "]]></address>" .
-            "<city><![CDATA[" . substr($city, 0, 40) . "]]></city>" .
-            "<state>" . substr($state, 0, 2) . "</state>" .
-            "<zip>" . substr($zip, 0, 20) . "</zip>" .
-            "<country>" . substr($country, 0, 60) . "</country>" .
-            "</billTo>" .
-            "</subscription>" .
-            "</ARBCreateSubscriptionRequest>";
-
-        //send the xml via curl
-        $this->response = $this->send_request_via_curl($host, $path, $this->content);
-        //if curl is unavilable you can try using fsockopen
-        /*
-        $response = send_request_via_fsockopen($host,$path,$content);
-        */
-
-        if (!empty($this->response)) {
-            list ($refId, $resultCode, $code, $text, $subscriptionId) = $this->parse_return($this->response);
-            if ($resultCode == "Ok") {
-                $order->status = "success";    //saved on checkout page
-                $order->subscription_transaction_id = $subscriptionId;
-                return true;
-            } else {
-                $order->status = "error";
-                $order->errorcode = $code;
-                $order->error = $text;
-                $order->shorterror = $text;
-                return false;
-            }
-        } else {
-            $order->status = "error";
-            $order->error = "Could not connect to Authorize.net";
-            $order->shorterror = "Could not connect to Authorize.net";
-            return false;
-        }
+        //simulate a successful subscription processing
+        $order->status = "success";
+        $order->subscription_transaction_id = "mpesa" . $order->code;
+        return true;
     }
-
     function update(&$order)
     {
         //define variables to send
@@ -957,144 +779,7 @@ class PMProGateway_mpesa extends PMProGateway
         }
     }
 
-    function getSubscriptionStatus(&$order)
-    {
-        //define variables to send
-        if (!empty($order->subscription_transaction_id))
-            $subscriptionId = $order->subscription_transaction_id;
-        else
-            $subscriptionId = "";
-        $loginname = pmpro_getOption("loginname");
-        $transactionkey = pmpro_getOption("transactionkey");
-
-        if (!empty($order->gateway_environment))
-            $gateway_environment = $order->gateway_environment;
-        else
-            $gateway_environment = pmpro_getOption("gateway_environment");
-
-        if ($gateway_environment == "live")
-            $host = "api.authorize.net";
-        else
-            $host = "apitest.authorize.net";
-
-        $path = "/xml/v1/request.api";
-
-        if (!$subscriptionId || !$loginname || !$transactionkey)
-            return false;
-
-        //build xml to post
-        $content =
-            "<?xml version=\"1.0\" encoding=\"utf-8\"?>" .
-            "<ARBGetSubscriptionStatusRequest xmlns=\"AnetApi/xml/v1/schema/AnetApiSchema.xsd\">" .
-            "<merchantAuthentication>" .
-            "<name>" . $loginname . "</name>" .
-            "<transactionKey>" . $transactionkey . "</transactionKey>" .
-            "</merchantAuthentication>" .
-            "<subscriptionId>" . $subscriptionId . "</subscriptionId>" .
-            "</ARBGetSubscriptionStatusRequest>";
-
-        //send the xml via curl
-        $response = $this->send_request_via_curl($host, $path, $content);
-
-        //if curl is unavilable you can try using fsockopen
-        /*
-        $response = send_request_via_fsockopen($host,$path,$content);
-        */
-
-        //if the connection and send worked $response holds the return from Authorize.net
-        if ($response) {
-            list ($resultCode, $code, $text, $subscriptionId) = $this->parse_return($response);
-
-            $status = $this->substring_between($response, '<status>', '</status>');
-
-            if ($resultCode == "Ok" || $code == "Ok") {
-                return $status;
-            } else {
-                $order->status = "error";
-                $order->errorcode = $resultCode;
-                $order->error = $message;
-                $order->shorterror = $text;
-            }
-        } else {
-            $order->status = "error";
-            $order->errorcode = $resultCode;
-            $order->error = $message;
-            $order->shorterror = $text;
-        }
-    }
-
-    //Authorize.net Function
-    //function to send xml request via fsockopen
-    function send_request_via_fsockopen($host, $path, $content)
-    {
-        $posturl = "ssl://" . $host;
-        $header = "Host: $host\r\n";
-        $header .= "User-Agent: PHP Script\r\n";
-        $header .= "Content-Type: text/xml\r\n";
-        $header .= "Content-Length: " . strlen($content) . "\r\n";
-        $header .= "Connection: close\r\n\r\n";
-        $fp = fsockopen($posturl, 443, $errno, $errstr, 30);
-        if (!$fp) {
-            $response = false;
-        } else {
-            error_reporting(E_ERROR);
-            fputs($fp, "POST $path  HTTP/1.1\r\n");
-            fputs($fp, $header . $content);
-            fwrite($fp, $out);
-            $response = "";
-            while (!feof($fp)) {
-                $response = $response . fgets($fp, 128);
-            }
-            fclose($fp);
-            error_reporting(E_ALL ^ E_NOTICE);
-        }
-        return $response;
-    }
-
-    //Authorize.net Function
-    //function to send xml request via curl
-    function send_request_via_curl($host, $path, $content)
-    {
-        $posturl = "https://" . $host . $path;
-        $posturl = apply_filters("pmpro_authorizenet_post_url", $posturl, pmpro_getOption("gateway_environment"));
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $posturl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, Array("Content-Type: text/xml"));
-        curl_setopt($ch, CURLOPT_HEADER, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $content);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-        curl_setopt($ch, CURLOPT_USERAGENT, PMPRO_USER_AGENT);    //set user agent
-        $response = curl_exec($ch);
-        return $response;
-    }
-
-
-    //Authorize.net Function
-    //function to parse Authorize.net response
-    function parse_return($content)
-    {
-        $refId = $this->substring_between($content, '<refId>', '</refId>');
-        $resultCode = $this->substring_between($content, '<resultCode>', '</resultCode>');
-        $code = $this->substring_between($content, '<code>', '</code>');
-        $text = $this->substring_between($content, '<text>', '</text>');
-        $subscriptionId = $this->substring_between($content, '<subscriptionId>', '</subscriptionId>');
-        return array($refId, $resultCode, $code, $text, $subscriptionId);
-    }
-
-    //Authorize.net Function
-    //helper function for parsing response
-    function substring_between($haystack, $start, $end)
-    {
-        if (strpos($haystack, $start) === false || strpos($haystack, $end) === false) {
-            return false;
-        } else {
-            $start_position = strpos($haystack, $start) + strlen($start);
-            $end_position = strpos($haystack, $end);
-            return substr($haystack, $start_position, $end_position - $start_position);
-        }
-    }
+   
 
 }
 //
