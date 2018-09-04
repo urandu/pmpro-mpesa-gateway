@@ -264,9 +264,19 @@ class PMProGateway_mpesa extends PMProGateway
 
                 print("<pre>");
                 $amount = $pmpro_level->initial_payment;
+                if(!empty($pmpro_error_fields["partial_payment"])){
+                    $total_amount_paid_by_msisdn = $pmpro_error_fields["partial_payment"];
+                    $balance_amount = $pmpro_error_fields["balance_amount"];
+                    unset($pmpro_error_fields["balance_amount"]);
+                    unset($pmpro_error_fields["partial_payment"]);
+                    $info_message = sprintf('Received KES %s, please pay KES %s to complete the payment. 
+                    To pay, go to mpesa and pay %s to till number %s then press the submit button below'
+                        ,$total_amount_paid_by_msisdn,$balance_amount,$balance_amount, "11111111");
 
-                $total_amount_paid_by_msisdn = $pmpro_error_fields["partial_payment"];
-                $balance_amount = $pmpro_error_fields["balance_amount"];
+                }else{
+                    $info_message = sprintf('To pay, go to mpesa and pay %s to till number %s', $amount, "11111111");
+                }
+
 
                 print("</pre>");
                 ?>
@@ -613,7 +623,7 @@ class PMProGateway_mpesa extends PMProGateway
                 $balance_amount = $amount - $total_amount_paid_by_msisdn;
                 $pmpro_error_fields["partial_payment"] = $total_amount_paid_by_msisdn;
                 $pmpro_error_fields["balance_amount"] = $balance_amount;
-                $message = sprintf("Received KES %s, please pay %s to complete the subscription.",
+                $message = sprintf("Received KES %s, please pay KES %s to complete the subscription.",
                     $total_amount_paid_by_msisdn, $balance_amount);
             }else{
                 //no money received
