@@ -266,7 +266,7 @@ class PMProGateway_mpesa extends PMProGateway
                 $amount = $pmpro_level->initial_payment;
 
                 $total_amount_paid_by_msisdn = $pmpro_error_fields["partial_payment"];
-                $balance_amount = $pmpro_error_fields["balance_amount"] =;
+                $balance_amount = $pmpro_error_fields["balance_amount"];
 
                 print("</pre>");
                 ?>
