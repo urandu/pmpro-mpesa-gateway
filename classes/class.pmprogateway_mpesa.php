@@ -247,7 +247,7 @@ class PMProGateway_mpesa extends PMProGateway
     static function pmpro_include_payment_information_fields($include)
     {
         //global vars
-        global $pmpro_requirebilling, $pmpro_show_discount_code, $discount_code, $CardType, $AccountNumber, $ExpirationMonth, $ExpirationYear, $current_user, $morder, $order_id, $pmpro_level;
+        global $pmpro_requirebilling, $pmpro_show_discount_code, $discount_code, $CardType, $AccountNumber, $ExpirationMonth, $ExpirationYear, $current_user, $morder, $order_id, $pmpro_level, $order,$pmpro_error_fields;
 
         //get accepted credit cards
         $pmpro_accepted_credit_cards = pmpro_getOption("accepted_credit_cards");
@@ -265,9 +265,12 @@ class PMProGateway_mpesa extends PMProGateway
                 print("<pre>");
                 $amount = $pmpro_level->initial_payment;
 
+                $total_amount_paid_by_msisdn = $pmpro_error_fields["partial_payment"];
+                $balance_amount = $pmpro_error_fields["balance_amount"] =;
+
                 print("</pre>");
                 ?>
-                <span class="pmpro_checkout-h3-name"><?php printf(__('To pay, go to mpesa and pay %s to till number %s'), $amount, "11111111"); ?></span>
+                <span class="pmpro_checkout-h3-name"><?php printf(__('To pay, go to mpesa and pay %s to till number %s .... %s'), $amount, "11111111", $pmpro_error_fields["partial_payment"]); ?></span>
             </h3>
             <?php $sslseal = pmpro_getOption("sslseal"); ?>
             <?php if (!empty($sslseal)) { ?>
@@ -606,9 +609,12 @@ class PMProGateway_mpesa extends PMProGateway
 
             if($total_amount_paid_by_msisdn > 0){
                 //partial payment
-                $order->partial_payment = $total_amount_paid_by_msisdn;
+                global $pmpro_error_fields;
+                $balance_amount = $amount - $total_amount_paid_by_msisdn;
+                $pmpro_error_fields["partial_payment"] = $total_amount_paid_by_msisdn;
+                $pmpro_error_fields["balance_amount"] = $balance_amount;
                 $message = sprintf("Received KES %s, please pay %s to complete the subscription.",
-                    $total_amount_paid_by_msisdn, $amount - $total_amount_paid_by_msisdn);
+                    $total_amount_paid_by_msisdn, $balance_amount);
             }else{
                 //no money received
                 $message = sprintf("No payment has been received from the msisdn %s.", $mpesa_msisdn);
