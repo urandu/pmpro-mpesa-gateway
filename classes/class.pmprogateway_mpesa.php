@@ -861,14 +861,4 @@ class PMProGateway_mpesa extends PMProGateway
 //    /*
 //        Get transaction status at the gateway.
 //
-//        Optional if you have code that needs this or
-//        want to support addons that use this.
-//    */
-//    function getTransactionStatus(&$order)
-//    {
-//        //code to get transaction status at the gateway and test results would go here
 //
-//        //this looks different for each gateway, but generally an array of some sort
-//        return array();
-//    }
-//}
