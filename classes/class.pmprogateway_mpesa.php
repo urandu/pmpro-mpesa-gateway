@@ -492,18 +492,19 @@ class PMProGateway_mpesa extends PMProGateway
 
     function authorize(&$order)
     {
+        // because the initial payment is 0 shillings, we shall always return true
         if(empty($order->code))
             $order->code = $order->getRandomCode();
 
-        if(empty($order->gateway_environment))
-            $gateway_environment = pmpro_getOption("gateway_environment");
-        else
-            $gateway_environment = $order->gateway_environment;
-        if($gateway_environment == "live")
-            $host = "secure.authorize.net";
-        else
-            $host = "test.authorize.net";
+        //create a code for the order
+        if(empty($order->code))
+            $order->code = $order->getRandomCode();
 
+
+        //simulate a successful authorization
+        $order->payment_transaction_id = "mpesa_" . $order->code;
+        $order->updateStatus("authorized");
+        return true;
         //check db for transaction associated with phone_number
         global $wpdb;
 
