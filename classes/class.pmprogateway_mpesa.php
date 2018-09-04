@@ -603,6 +603,9 @@ class PMProGateway_mpesa extends PMProGateway
             return true;
         } else {
             // the amount is not fully paid return error to checkout page
+
+
+
             //$order->status = "error";
             $order->errorcode = "transaction failed 1";
             $order->error = "transaction failed 2 $mpesa_msisdn";
