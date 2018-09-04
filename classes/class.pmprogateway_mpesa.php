@@ -602,7 +602,7 @@ class PMProGateway_mpesa extends PMProGateway
             );
             return true;
         } else {
-            // the amount is not fully paid return error to checkout page
+            // the amount is not fully paid return error to checkout page 
 
 
 
