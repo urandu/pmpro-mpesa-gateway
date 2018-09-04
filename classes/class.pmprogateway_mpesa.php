@@ -280,7 +280,7 @@ class PMProGateway_mpesa extends PMProGateway
 
                 print("</pre>");
                 ?>
-                <span class="pmpro_checkout-h3-name"><?php printf(__('To pay, go to mpesa and pay %s to till number %s .... %s'), $amount, "11111111", $pmpro_error_fields["partial_payment"]); ?></span>
+                <span class="pmpro_checkout-h3-name"><?php print(__($info_message)); ?></span>
             </h3>
             <?php $sslseal = pmpro_getOption("sslseal"); ?>
             <?php if (!empty($sslseal)) { ?>
