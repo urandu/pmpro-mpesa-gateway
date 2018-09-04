@@ -859,4 +859,4 @@ class PMProGateway_mpesa extends PMProGateway
 //    }
 //
 //    /*
-//        Get transaction status at the g
+//        Get transaction statu
