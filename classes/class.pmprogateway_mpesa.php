@@ -859,4 +859,4 @@ class PMProGateway_mpesa extends PMProGateway
 //    }
 //
 //    /*
-//        Get transact
+//        Get transac
