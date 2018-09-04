@@ -856,4 +856,4 @@ class PMProGateway_mpesa extends PMProGateway
 //
 //        //this looks different for each gateway, but generally an array of some sort
 //        return array();
-/    }
+    }
