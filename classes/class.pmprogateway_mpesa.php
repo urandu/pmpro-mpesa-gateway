@@ -596,7 +596,10 @@ class PMProGateway_mpesa extends PMProGateway
             $order->updateStatus("success");
 
             // update mpesa transactions table
-            
+            $wpdb->query( $wpdb->prepare("UPDATE $table_name 
+                SET order_id = %s 
+             WHERE msisdn = %s AND order_id=-1",$order->code, $mpesa_msisdn)
+            );
             return true;
         } else {
             // the amount is not fully paid return error to checkout page
