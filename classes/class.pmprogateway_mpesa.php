@@ -570,7 +570,9 @@ class PMProGateway_mpesa extends PMProGateway
         }
 
         // validate_payload
-        //
+        
+        // save the payload to the database
+        // exit
         // do the processsing here
 
         // don't forget to exit when you are done
