@@ -564,12 +564,12 @@ class PMProGateway_mpesa extends PMProGateway
 
     function pmpro_mpesa_ipn_listener() {
         // check for your custom query var
-        // If you are paranoid you can also check the value of the var
-        if ( ! isset( $_GET['MYIPN_LISTENER'] ) ) {
+        if ( ! isset( $_GET['pmpro_mpesa_ipn'] ) ) {
             // if query var is not present just return
             return;
         }
 
+        validate_payload
         // do the processsing here
 
         // don't forget to exit when you are done
