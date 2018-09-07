@@ -576,7 +576,7 @@ class PMProGateway_mpesa extends PMProGateway
         exit;
     }
 
-    public static function processB2BRequestCallback(){
+    function processB2BRequestCallback(){
         $callbackJSONData=file_get_contents('php://input');
         $callbackData=json_decode($callbackJSONData);
         $resultCode=$callbackData->Result->ResultCode;
