@@ -593,6 +593,7 @@ class PMProGateway_mpesa extends PMProGateway
         $receiverPartyPublicName=$callbackData->Result->ResultParameters->ResultParameter[5]->Value;
         $B2CChargesPaidAccountAvailableFunds=$callbackData->Result->ResultParameters->ResultParameter[6]->Value;
         $B2CRecipientIsRegisteredCustomer=$callbackData->Result->ResultParameters->ResultParameter[7]->Value;
+
         $result=[
             "resultCode"=>$resultCode,
             "resultDesc"=>$resultDesc,
@@ -608,6 +609,26 @@ class PMProGateway_mpesa extends PMProGateway
             "B2CChargesPaidAccountAvailableFunds"=>$B2CChargesPaidAccountAvailableFunds,
             "B2CRecipientIsRegisteredCustomer"=>$B2CRecipientIsRegisteredCustomer
         ];
+
+        global $wpdb;
+
+        //to use account_number for paybills.
+        $table_name = $wpdb->prefix . 'mpesa_pmpro';
+        $sql_query = "";
+        $total_amount_paid_by_msisdn = $wpdb->query("SELECT SUM(amount) AS total_amount FROM $table_name WHERE msisdn=$mpesa_msisdn AND order_id=-1;");
+
+
+        /*
+         *
+         * id bigint PRIMARY KEY NOT NULL AUTO_INCREMENT,
+        msisdn varchar(20) NOT NULL,
+        time datetime DEFAULT CURRENT_TIMESTAMP,
+        user_id varchar(255),
+        amount float NOT NULL,
+        order_id varchar(255) NOT NULL DEFAULT -1,
+        payload longtext,
+        mpesa_transaction_id varchar(50)
+         * */
         return json_encode($result);
     }
 
