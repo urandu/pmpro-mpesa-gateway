@@ -69,6 +69,7 @@ class PMProGateway_mpesa extends PMProGateway
         add_action('pmpro_deactivation', array('PMProGateway_mpesa', 'pmpro_deactivation'));
         add_action('pmpro_cron_mpesa_subscription_updates', array('PMProGateway_mpesa', 'pmpro_cron_mpesa_subscription_updates'));
 
+
         //code to add at checkout if mpesa is the current gateway
         $gateway = pmpro_getOption("gateway");
         if ($gateway == "mpesa") {
@@ -80,6 +81,7 @@ class PMProGateway_mpesa extends PMProGateway
             add_filter('pmpro_billing_order', array('PMProGateway_mpesa', 'pmpro_checkout_order'));
             add_filter('pmpro_required_billing_fields', array('PMProGateway_mpesa', 'pmpro_required_billing_fields'));
             add_filter('pmpro_include_payment_information_fields', array('PMProGateway_mpesa', 'pmpro_include_payment_information_fields'));
+            add_action( 'init', 'pmpro_mpesa_ipn_listener' );
         }
 
 
@@ -558,6 +560,20 @@ class PMProGateway_mpesa extends PMProGateway
         $order->status = "success";
         $order->subscription_transaction_id = "mpesa" . $order->code;
         return true;
+    }
+
+    function pmpro_mpesa_ipn_listener() {
+        // check for your custom query var
+        // If you are paranoid you can also check the value of the var
+        if ( ! isset( $_GET['MYIPN_LISTENER'] ) ) {
+            // if query var is not present just return
+            return;
+        }
+
+        // do the processsing here
+
+        // don't forget to exit when you are done
+        exit;
     }
 
 
