@@ -19,10 +19,11 @@ function mpesa_install()
 		id bigint PRIMARY KEY NOT NULL AUTO_INCREMENT,
         msisdn varchar(20) NOT NULL,
         time datetime DEFAULT CURRENT_TIMESTAMP,
-        user_id varchar(255) NOT NULL,
+        user_id varchar(255),
         amount float NOT NULL,
         order_id varchar(255) NOT NULL DEFAULT -1,
-        payload longtext
+        payload longtext,
+        mpesa_transaction_id varchar(50)
 	  ) $charset_collate;";
 
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
