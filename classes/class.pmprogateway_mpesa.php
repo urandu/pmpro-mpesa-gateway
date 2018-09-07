@@ -569,7 +569,7 @@ class PMProGateway_mpesa extends PMProGateway
             return;
         }
 
-        validate_payload
+        //validate_payload
         // do the processsing here
 
         // don't forget to exit when you are done
