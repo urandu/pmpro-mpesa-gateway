@@ -167,7 +167,7 @@ class PMProGateway_mpesa extends PMProGateway
             </th>
             <td>
                 <input type="text" disabled id="pmpro_mpesa_uid" name="pmpro_mpesa_uid" size="60"
-                       value="<?php echo esc_attr($values['pmpro_mpesa_uid']) ?>"/>
+                       value="<?php if(!pmpro_getOption("pmpro_mpesa_uid")){echo wp_generate_uuid4();}echo esc_attr($values['pmpro_mpesa_uid']) ?>"/>
             </td>
         </tr>
         <?php
