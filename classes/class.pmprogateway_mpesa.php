@@ -584,7 +584,7 @@ class PMProGateway_mpesa extends PMProGateway
         $resultDesc=$callbackData->Result->ResultDesc;
         $originatorConversationID=$callbackData->Result->OriginatorConversationID;
         $conversationID=$callbackData->Result->ConversationID;
-        $transactionID=$callbackData->Result->TransactionID;
+        $transaction_id=$callbackData->Result->TransactionID;
         $transactionReceipt=$callbackData->Result->ResultParameters->ResultParameter[0]->Value;
         $transactionAmount=$callbackData->Result->ResultParameters->ResultParameter[1]->Value;
         $b2CWorkingAccountAvailableFunds=$callbackData->Result->ResultParameters->ResultParameter[2]->Value;
@@ -599,7 +599,7 @@ class PMProGateway_mpesa extends PMProGateway
             "resultDesc"=>$resultDesc,
             "originatorConversationID"=>$originatorConversationID,
             "conversationID"=>$conversationID,
-            "transactionID"=>$transactionID,
+            "transactionID"=>$transaction_id,
             "transactionReceipt"=>$transactionReceipt,
             "transactionAmount"=>$transactionAmount,
             "b2CWorkingAccountAvailableFunds"=>$b2CWorkingAccountAvailableFunds,
@@ -614,6 +614,13 @@ class PMProGateway_mpesa extends PMProGateway
 
         //to use account_number for paybills.
         $table_name = $wpdb->prefix . 'mpesa_pmpro';
+
+        $transaction_exists = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->users WHERE mpesa_transaction_id=$transaction_id" );
+
+        if(!empty($transaction_exists)){
+
+            return false;
+        }
         $total_amount_paid_by_msisdn = $wpdb->get_var("SELECT SUM(amount) AS total_amount FROM $table_name WHERE msisdn=$mpesa_msisdn AND order_id=-1;");
 
 
