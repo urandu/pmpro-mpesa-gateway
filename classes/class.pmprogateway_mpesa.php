@@ -620,6 +620,8 @@ class PMProGateway_mpesa extends PMProGateway
         if(!empty($transaction_exists)){
 
             return false;
+        }else{
+            
         }
         $total_amount_paid_by_msisdn = $wpdb->get_var("SELECT SUM(amount) AS total_amount FROM $table_name WHERE msisdn=$mpesa_msisdn AND order_id=-1;");
 
