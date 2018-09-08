@@ -629,6 +629,7 @@ class PMProGateway_mpesa extends PMProGateway
             $insert_query = "INSERT INTO $table_name (msisdn, amount, payload, mpesa_transaction_id) VALUES ($msisdn, $transaction_amount, $payload, $transaction_id);";
             $wpdb->query($insert_query);
             // todo confirm result of the query
+            return true;
         }
         $total_amount_paid_by_msisdn = $wpdb->get_var("SELECT SUM(amount) AS total_amount FROM $table_name WHERE msisdn=$mpesa_msisdn AND order_id=-1;");
 
