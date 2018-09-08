@@ -209,14 +209,8 @@ class PMProGateway_mpesa extends PMProGateway
     static function pmpro_include_payment_information_fields($include)
     {
         //global vars
-        global $pmpro_requirebilling, $pmpro_show_discount_code, $discount_code, $CardType, $AccountNumber, $ExpirationMonth, $ExpirationYear, $current_user, $morder, $order_id, $pmpro_level, $order, $pmpro_error_fields;
+        global $pmpro_requirebilling, $msisdn, $pmpro_level, $pmpro_error_fields;
 
-        //get accepted credit cards
-        $pmpro_accepted_credit_cards = pmpro_getOption("accepted_credit_cards");
-        $pmpro_accepted_credit_cards = explode(",", $pmpro_accepted_credit_cards);
-        $pmpro_accepted_credit_cards_string = pmpro_implodeToEnglish($pmpro_accepted_credit_cards);
-
-        //include ours
         ?>
         <div id="pmpro_payment_information_fields" class="pmpro_checkout"
              <?php if (!$pmpro_requirebilling || apply_filters("pmpro_hide_payment_information_fields", false)) { ?>style="display: none;"<?php } ?>>
@@ -224,7 +218,6 @@ class PMProGateway_mpesa extends PMProGateway
                 <span class="pmpro_checkout-h3-name"><?php _e('Payment Information', 'paid-memberships-pro'); ?></span>
                 <?php
 
-                //                print("<pre>");
                 $amount = $pmpro_level->initial_payment;
                 if (!empty($pmpro_error_fields["partial_payment"])) {
                     $total_amount_paid_by_msisdn = $pmpro_error_fields["partial_payment"];
@@ -239,8 +232,6 @@ class PMProGateway_mpesa extends PMProGateway
                     $info_message = sprintf('To pay, go to mpesa and pay %s to till number %s', $amount, "11111111");
                 }
 
-
-                //                print("</pre>");
                 ?>
                 <span class="pmpro_checkout-h3-name"><?php print(__($info_message)); ?></span>
             </h3>
@@ -251,9 +242,9 @@ class PMProGateway_mpesa extends PMProGateway
                 <div class="pmpro_checkout-fields">
                     <div class="pmpro_checkout-field pmpro_payment-account-number">
                         <label for="AccountNumber"><?php _e('Phone Number', 'paid-memberships-pro'); ?></label>
-                        <input id="AccountNumber" name="msisdn"
-                               class="input <?php echo pmpro_getClassForField("AccountNumber"); ?>" type="text"
-                               size="25" value="<?php echo esc_attr($AccountNumber) ?>" data-encrypted-name="msisdn"
+                        <input id="AccountNumber" required name="msisdn"
+                               class="input <?php echo pmpro_getClassForField("msisdn"); ?>" type="text"
+                               size="25" value="<?php echo esc_attr($msisdn) ?>" data-encrypted-name="msisdn"
                                autocomplete="off"/>
                     </div>
 
@@ -351,7 +342,6 @@ class PMProGateway_mpesa extends PMProGateway
         if (floatval($order->InitialPayment) == 0) {
             //auth first, then process
             if ($this->authorize($order)) {
-                //$this->void($order);
                 if (!pmpro_isLevelTrial($order->membership_level)) {
                     //subscription will start today with a 1 period trial
                     $order->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
