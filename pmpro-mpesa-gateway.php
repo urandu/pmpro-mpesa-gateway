@@ -2,7 +2,7 @@
 /*
 Plugin Name: Mpesa Gateway for Paid Memberships Pro
 Description: Mpesa Gateway for Paid Memberships Pro
-Version: .1
+Version: 1.0
 */
 
 define("PMPRO_MPESAGATEWAY_DIR", dirname(__FILE__));
