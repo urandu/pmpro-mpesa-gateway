@@ -578,7 +578,7 @@ class PMProGateway_mpesa extends PMProGateway
     }
 
     
-        public static function processC2BRequestValidation(){
+        function c2b_confirmation_request(){
             $callbackJSONData=file_get_contents('php://input');
             $callbackData=json_decode($callbackJSONData);
             $transactionType=$callbackData->TransactionType;
@@ -643,7 +643,6 @@ class PMProGateway_mpesa extends PMProGateway
         payload longtext,
         mpesa_transaction_id varchar(50)
          * */
-        return json_encode($result);
     }
 
 
