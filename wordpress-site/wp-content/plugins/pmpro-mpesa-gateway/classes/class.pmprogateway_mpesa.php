@@ -6,88 +6,6 @@ add_action('init', array('PMProGateway_mpesa', 'init'));
 global $mpesa_db_version;
 $mpesa_db_version = '1.0';
 
-function mpesa_install()
-{
-    global $wpdb;
-    global $mpesa_db_version;
-
-    $table_name = $wpdb->prefix . 'pmpro_mpesa';
-
-    $charset_collate = $wpdb->get_charset_collate();
-
-    $sql = "CREATE TABLE $table_name (
-		id bigint PRIMARY KEY NOT NULL AUTO_INCREMENT,
-        msisdn varchar(20) NOT NULL,
-        time datetime DEFAULT CURRENT_TIMESTAMP,
-        user_id varchar(255),
-        amount float NOT NULL,
-        order_id varchar(255) NOT NULL DEFAULT -1,
-        payload longtext,
-        mpesa_transaction_id varchar(50)
-	  ) $charset_collate;";
-
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($sql);
-
-    add_option('mpesa_db_version', $mpesa_db_version);
-}
-function pmpro_mpesa_ipn_listener()
-{
-    // check for your custom query var
-    if (!isset($_GET['pmpro_mpesa_ipn'])) {
-        // if query var is not present just return
-
-        return;
-
-    }
-    // todo validate request is from mpesa
-    // validate_payload
-    // check if payload exists in db
-    // save the payload to the database
-    // exit
-    c2b_confirmation_request();
-    exit;
-}
-
-
-function c2b_confirmation_request()
-{
-    $callbackJSONData = file_get_contents('php://input');
-    $callbackData = json_decode($callbackJSONData);
-    $transactionType = $callbackData->TransactionType;
-    $transaction_id = $callbackData->TransID;
-    $transTime = $callbackData->TransTime;
-    $transaction_amount = $callbackData->TransAmount;
-    $businessShortCode = $callbackData->BusinessShortCode;
-    $billRefNumber = $callbackData->BillRefNumber;
-    $invoiceNumber = $callbackData->InvoiceNumber;
-    $orgAccountBalance = $callbackData->OrgAccountBalance;
-    $thirdPartyTransID = $callbackData->ThirdPartyTransID;
-    $msisdn = $callbackData->MSISDN;
-    $firstName = $callbackData->FirstName;
-    $middleName = $callbackData->MiddleName;
-    $lastName = $callbackData->LastName;
-
-    $payload = $callbackJSONData;
-    global $wpdb;
-
-    //to use account_number for paybills.
-    $table_name = $wpdb->prefix . 'pmpro_mpesa';
-    $sql_string = sprintf("SELECT COUNT(*) FROM %s WHERE mpesa_transaction_id='%s'",$table_name,$transaction_id);
-    $transaction_exists = $wpdb->get_var($sql_string);
-    if (!empty($transaction_exists)) {
-        return false;
-    } else {
-        //save transaction in db
-        $insert_query = sprintf("INSERT INTO %s (msisdn, amount, payload, mpesa_transaction_id) VALUES (%s, %s, '%s','%s');",$table_name, $msisdn, $transaction_amount,$payload, $transaction_id);
-        $wpdb->query($insert_query);
-        // todo confirm result of the query
-        return true;
-    }
-
-}
-
-
 /**
  * PMProGateway_gatewayname Class
  *
@@ -291,14 +209,8 @@ class PMProGateway_mpesa extends PMProGateway
     static function pmpro_include_payment_information_fields($include)
     {
         //global vars
-        global $pmpro_requirebilling, $pmpro_show_discount_code, $discount_code, $CardType, $AccountNumber, $ExpirationMonth, $ExpirationYear, $current_user, $morder, $order_id, $pmpro_level, $order, $pmpro_error_fields;
+        global $pmpro_requirebilling, $msisdn, $pmpro_level, $pmpro_error_fields;
 
-        //get accepted credit cards
-        $pmpro_accepted_credit_cards = pmpro_getOption("accepted_credit_cards");
-        $pmpro_accepted_credit_cards = explode(",", $pmpro_accepted_credit_cards);
-        $pmpro_accepted_credit_cards_string = pmpro_implodeToEnglish($pmpro_accepted_credit_cards);
-
-        //include ours
         ?>
         <div id="pmpro_payment_information_fields" class="pmpro_checkout"
              <?php if (!$pmpro_requirebilling || apply_filters("pmpro_hide_payment_information_fields", false)) { ?>style="display: none;"<?php } ?>>
@@ -306,7 +218,6 @@ class PMProGateway_mpesa extends PMProGateway
                 <span class="pmpro_checkout-h3-name"><?php _e('Payment Information', 'paid-memberships-pro'); ?></span>
                 <?php
 
-                //                print("<pre>");
                 $amount = $pmpro_level->initial_payment;
                 if (!empty($pmpro_error_fields["partial_payment"])) {
                     $total_amount_paid_by_msisdn = $pmpro_error_fields["partial_payment"];
@@ -321,8 +232,6 @@ class PMProGateway_mpesa extends PMProGateway
                     $info_message = sprintf('To pay, go to mpesa and pay %s to till number %s', $amount, "11111111");
                 }
 
-
-                //                print("</pre>");
                 ?>
                 <span class="pmpro_checkout-h3-name"><?php print(__($info_message)); ?></span>
             </h3>
@@ -333,9 +242,9 @@ class PMProGateway_mpesa extends PMProGateway
                 <div class="pmpro_checkout-fields">
                     <div class="pmpro_checkout-field pmpro_payment-account-number">
                         <label for="AccountNumber"><?php _e('Phone Number', 'paid-memberships-pro'); ?></label>
-                        <input id="AccountNumber" name="msisdn"
-                               class="input <?php echo pmpro_getClassForField("AccountNumber"); ?>" type="text"
-                               size="25" value="<?php echo esc_attr($AccountNumber) ?>" data-encrypted-name="msisdn"
+                        <input id="AccountNumber" required name="msisdn"
+                               class="input <?php echo pmpro_getClassForField("msisdn"); ?>" type="text"
+                               size="25" value="<?php echo esc_attr($msisdn) ?>" data-encrypted-name="msisdn"
                                autocomplete="off"/>
                     </div>
 
@@ -433,7 +342,6 @@ class PMProGateway_mpesa extends PMProGateway
         if (floatval($order->InitialPayment) == 0) {
             //auth first, then process
             if ($this->authorize($order)) {
-                //$this->void($order);
                 if (!pmpro_isLevelTrial($order->membership_level)) {
                     //subscription will start today with a 1 period trial
                     $order->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
@@ -560,8 +468,8 @@ class PMProGateway_mpesa extends PMProGateway
 
         //to use account_number for paybills.
         $mpesa_msisdn = $order->mpesa_msisdn;
-        $mpesa_msisdn = str_replace("07","2547",$mpesa_msisdn);
-        $mpesa_msisdn = str_replace("+","",$mpesa_msisdn);
+        $mpesa_msisdn = str_replace("07", "2547", $mpesa_msisdn);
+        $mpesa_msisdn = str_replace("+", "", $mpesa_msisdn);
         $mpesa_msisdn = trim($mpesa_msisdn);
         $table_name = $wpdb->prefix . 'pmpro_mpesa';
         $total_amount_paid_by_msisdn = $wpdb->get_var("SELECT SUM(amount) AS total_amount FROM $table_name WHERE msisdn=$mpesa_msisdn AND order_id=-1;");
@@ -622,5 +530,98 @@ class PMProGateway_mpesa extends PMProGateway
     }
 
 
+}
+
+
+function mpesa_install()
+{
+    global $wpdb;
+    global $mpesa_db_version;
+
+    $table_name = $wpdb->prefix . 'pmpro_mpesa';
+
+    $charset_collate = $wpdb->get_charset_collate();
+
+    $sql = "CREATE TABLE $table_name (
+		id bigint PRIMARY KEY NOT NULL AUTO_INCREMENT,
+        msisdn varchar(20) NOT NULL,
+        time datetime DEFAULT CURRENT_TIMESTAMP,
+        user_id varchar(255),
+        amount float NOT NULL,
+        order_id varchar(255) NOT NULL DEFAULT -1,
+        payload longtext,
+        mpesa_transaction_id varchar(50)
+	  ) $charset_collate;";
+
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+
+    add_option('mpesa_db_version', $mpesa_db_version);
+}
+
+function pmpro_mpesa_ipn_listener()
+{
+    // check for your custom query var
+    if (!isset($_GET['pmpro_mpesa_ipn'])) {
+        // if query var is not present just return
+
+        return;
+
+    }
+
+    if (!isset($_GET['uid'])) {
+
+        $_400_response = Array(
+            "status" => "error",
+            "message"=>"uid not set"
+        );
+
+        echo(json_encode($_400_response));
+        return;
+    }
+
+    if($_GET['uid']!= ""){
+        $_403_response = Array(
+            "status" => "error",
+            "message"=>"uid invalid"
+        );
+
+        echo(json_encode($_403_response));
+        return;
+    }
+
+    // todo validate request is from mpesa
+    // todo validate_payload
+    c2b_confirmation_request();
+    exit;
+}
+
+
+function c2b_confirmation_request()
+{
+    $callbackJSONData = file_get_contents('php://input');
+    $callbackData = json_decode($callbackJSONData);
+    $transaction_id = $callbackData->TransID;
+    $transaction_amount = $callbackData->TransAmount;
+    $msisdn = $callbackData->MSISDN;
+
+    $payload = $callbackJSONData;
+    global $wpdb;
+
+    //to use account_number for paybills.
+    $table_name = $wpdb->prefix . 'pmpro_mpesa';
+    $sql_string = sprintf("SELECT COUNT(*) FROM %s WHERE mpesa_transaction_id='%s'", $table_name, $transaction_id);
+    $transaction_exists = $wpdb->get_var($sql_string);
+    if (!empty($transaction_exists)) {
+        return false;
+    } else {
+        //save transaction in db
+        $insert_query = sprintf("INSERT INTO %s (msisdn, amount, payload, mpesa_transaction_id) VALUES (%s, %s, '%s','%s');", $table_name, $msisdn, $transaction_amount, $payload, $transaction_id);
+        $wpdb->query($insert_query);
+        // todo confirm result of the query
+        return true;
+    }
 
 }
+
+
