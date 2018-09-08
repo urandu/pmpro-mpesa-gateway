@@ -69,6 +69,7 @@ class PMProGateway_mpesa extends PMProGateway
         add_action('pmpro_activation', array('PMProGateway_mpesa', 'pmpro_activation'));
         add_action('pmpro_deactivation', array('PMProGateway_mpesa', 'pmpro_deactivation'));
         add_action('pmpro_cron_mpesa_subscription_updates', array('PMProGateway_mpesa', 'pmpro_cron_mpesa_subscription_updates'));
+        add_action('init', 'pmpro_mpesa_ipn_listener');
 
 
         //code to add at checkout if mpesa is the current gateway
@@ -82,7 +83,7 @@ class PMProGateway_mpesa extends PMProGateway
             add_filter('pmpro_billing_order', array('PMProGateway_mpesa', 'pmpro_checkout_order'));
             add_filter('pmpro_required_billing_fields', array('PMProGateway_mpesa', 'pmpro_required_billing_fields'));
             add_filter('pmpro_include_payment_information_fields', array('PMProGateway_mpesa', 'pmpro_include_payment_information_fields'));
-            add_action('init', 'pmpro_mpesa_ipn_listener');
+
         }
 
 
