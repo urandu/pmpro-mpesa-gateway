@@ -161,6 +161,15 @@ class PMProGateway_mpesa extends PMProGateway
                        value="<?php echo esc_attr($values['mpesa_api_key']) ?>"/>
             </td>
         </tr>
+        <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
+            <th scope="row" valign="top">
+                <label for="secret_plugin_uid"><?php _e('API Key', 'paid-memberships-pro'); ?>:</label>
+            </th>
+            <td>
+                <input type="text" id="mpesa_api_key" name="mpesa_api_key" size="60"
+                       value="<?php echo esc_attr($values['mpesa_api_key']) ?>"/>
+            </td>
+        </tr>
         <?php
     }
 
@@ -590,7 +599,7 @@ function pmpro_mpesa_ipn_listener()
         //return;
     }
 
-    // todo validate request is from mpesa
+    // todo validate request is from mpesa using IP address
     // todo validate_payload
     c2b_confirmation_request();
     exit;
