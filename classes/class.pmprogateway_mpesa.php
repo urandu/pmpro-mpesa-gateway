@@ -625,7 +625,6 @@ class PMProGateway_mpesa extends PMProGateway
             /*
              * INSERT INTO wordpress.wp_mpesa_pmpro (id, msisdn, time, user_id, amount, order_id, payload, mpesa_transaction_id) VALUES (1, '555', '2018-09-04 19:44:18', '1', 5, 'D9050E902E', 'hjgjhgj', null);
 INSERT INTO wordpress.wp_mpesa_pmpro (id, msisdn, time, user_id, amount, order_id, payload, mpesa_transaction_id) VALUES (2, '555', '2018-09-04 19:44:18', '1', 4, 'D9050E902E', 'hjgjhgj', null);
-INSERT INTO wordpress.wp_mpesa_pmpro (id, msisdn, time, user_id, amount, order_id, payload, mpesa_transaction_id) VALUES (3, '555', '2018-09-04 19:44:18', '1', 2, '-1', 'hjgjhgj', null);
              *
              * */
 
