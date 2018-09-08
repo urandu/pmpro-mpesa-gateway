@@ -4,7 +4,7 @@ add_action('init', array('PMProGateway_mpesa', 'init'));
 
 
 global $mpesa_db_version;
-$mpesa_db_version = '1.0';
+$mpesa_db_version = '1.1';
 
 function mpesa_install()
 {

@@ -11,7 +11,7 @@ function mpesa_install()
     global $wpdb;
     global $mpesa_db_version;
 
-    $table_name = $wpdb->prefix . 'mpesa_pmpro';
+    $table_name = $wpdb->prefix . 'pmpro_mpesa';
 
     $charset_collate = $wpdb->get_charset_collate();
 
@@ -19,10 +19,11 @@ function mpesa_install()
 		id bigint PRIMARY KEY NOT NULL AUTO_INCREMENT,
         msisdn varchar(20) NOT NULL,
         time datetime DEFAULT CURRENT_TIMESTAMP,
-        user_id varchar(255) NOT NULL,
+        user_id varchar(255),
         amount float NOT NULL,
         order_id varchar(255) NOT NULL DEFAULT -1,
-        payload longtext
+        payload longtext,
+        mpesa_transaction_id varchar(50)
 	  ) $charset_collate;";
 
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -69,6 +70,7 @@ class PMProGateway_mpesa extends PMProGateway
         add_action('pmpro_deactivation', array('PMProGateway_mpesa', 'pmpro_deactivation'));
         add_action('pmpro_cron_mpesa_subscription_updates', array('PMProGateway_mpesa', 'pmpro_cron_mpesa_subscription_updates'));
 
+
         //code to add at checkout if mpesa is the current gateway
         $gateway = pmpro_getOption("gateway");
         if ($gateway == "mpesa") {
@@ -80,6 +82,7 @@ class PMProGateway_mpesa extends PMProGateway
             add_filter('pmpro_billing_order', array('PMProGateway_mpesa', 'pmpro_checkout_order'));
             add_filter('pmpro_required_billing_fields', array('PMProGateway_mpesa', 'pmpro_required_billing_fields'));
             add_filter('pmpro_include_payment_information_fields', array('PMProGateway_mpesa', 'pmpro_include_payment_information_fields'));
+            add_action('init', 'pmpro_mpesa_ipn_listener');
         }
 
 
@@ -185,20 +188,6 @@ class PMProGateway_mpesa extends PMProGateway
                        value="<?php echo esc_attr($values['mpesa_api_key']) ?>"/>
             </td>
         </tr>
-        <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
-            <th scope="row" valign="top">
-                <label><?php _e('Web Hook URL', 'paid-memberships-pro'); ?>:</label>
-            </th>
-            <td>
-                <p>
-                    <?php _e('To fully integrate with mpesa, be sure to set your Web Hook URL to', 'paid-memberships-pro'); ?>
-                <pre><?php
-                    //echo admin_url("admin-ajax.php") . "?action=mpesa_webhook";
-                    echo add_query_arg('action', 'mpesa_webhook', admin_url('admin-ajax.php'));
-                    ?></pre>
-                </p>
-            </td>
-        </tr>
         <?php
     }
 
@@ -247,7 +236,7 @@ class PMProGateway_mpesa extends PMProGateway
     static function pmpro_include_payment_information_fields($include)
     {
         //global vars
-        global $pmpro_requirebilling, $pmpro_show_discount_code, $discount_code, $CardType, $AccountNumber, $ExpirationMonth, $ExpirationYear, $current_user, $morder, $order_id, $pmpro_level, $order,$pmpro_error_fields;
+        global $pmpro_requirebilling, $pmpro_show_discount_code, $discount_code, $CardType, $AccountNumber, $ExpirationMonth, $ExpirationYear, $current_user, $morder, $order_id, $pmpro_level, $order, $pmpro_error_fields;
 
         //get accepted credit cards
         $pmpro_accepted_credit_cards = pmpro_getOption("accepted_credit_cards");
@@ -264,16 +253,16 @@ class PMProGateway_mpesa extends PMProGateway
 
                 //                print("<pre>");
                 $amount = $pmpro_level->initial_payment;
-                if(!empty($pmpro_error_fields["partial_payment"])){
+                if (!empty($pmpro_error_fields["partial_payment"])) {
                     $total_amount_paid_by_msisdn = $pmpro_error_fields["partial_payment"];
                     $balance_amount = $pmpro_error_fields["balance_amount"];
                     unset($pmpro_error_fields["balance_amount"]);
                     unset($pmpro_error_fields["partial_payment"]);
                     $info_message = sprintf('Received KES %s, please pay KES %s to complete the payment.<br> 
                     To pay, go to mpesa and pay %s to till number %s then press the submit button below'
-                        ,$total_amount_paid_by_msisdn,$balance_amount,$balance_amount, "11111111");
+                        , $total_amount_paid_by_msisdn, $balance_amount, $balance_amount, "11111111");
 
-                }else{
+                } else {
                     $info_message = sprintf('To pay, go to mpesa and pay %s to till number %s', $amount, "11111111");
                 }
 
@@ -313,17 +302,6 @@ class PMProGateway_mpesa extends PMProGateway
      */
     static function pmpro_required_billing_fields($fields)
     {
-//        unset($fields['CVV']);
-//        unset($fields['cvv']);
-//        unset($fields['bfirstname']);
-//        unset($fields['blastname']);
-//        unset($fields['baddress1']);
-//        unset($fields['baddress2']);
-//        unset($fields['bcity']);
-//        unset($fields['bstate']);
-//        unset($fields['bzipcode']);
-//        unset($fields['bcountry']);
-//        unset($fields['bphone']);
         $fields['msisdn'] = true;
         unset($fields["bfirstname"]);
         unset($fields["blastname"]);
@@ -508,78 +486,6 @@ class PMProGateway_mpesa extends PMProGateway
 
     }
 
-//    function void(&$order)
-//    {
-//        if(empty($order->payment_transaction_id))
-//            return false;
-//
-//        if(empty($order->gateway_environment))
-//            $gateway_environment = pmpro_getOption("gateway_environment");
-//        else
-//            $gateway_environment = $order->gateway_environment;
-//        if($gateway_environment == "live")
-//            $host = "secure.authorize.net";
-//        else
-//            $host = "test.authorize.net";
-//
-//        $path = "/gateway/transact.dll";
-//        $post_url = "https://" . $host . $path;
-//
-//        $post_url = apply_filters("pmpro_authorizenet_post_url", $post_url, $gateway_environment);
-//
-//        $post_values = array(
-//
-//            // the API Login ID and Transaction Key must be replaced with valid values
-//            "x_login"			=> pmpro_getOption("loginname"),
-//            "x_tran_key"		=> pmpro_getOption("transactionkey"),
-//
-//            "x_version"			=> "3.1",
-//            "x_delim_data"		=> "TRUE",
-//            "x_delim_char"		=> "|",
-//            "x_relay_response"	=> "FALSE",
-//
-//            "x_type"			=> "VOID",
-//            "x_trans_id"			=> $order->payment_transaction_id
-//            // Additional fields can be added here as outlined in the AIM integration
-//            // guide at: http://developer.authorize.net
-//        );
-//
-//        // This section takes the input fields and converts them to the proper format
-//        // for an http post.  For example: "x_login=username&x_tran_key=a1B2c3D4"
-//        $post_string = "";
-//        foreach( $post_values as $key => $value )
-//        { $post_string .= "$key=" . urlencode( str_replace("#", "%23", $value) ) . "&"; }
-//        $post_string = rtrim( $post_string, "& " );
-//
-//        //curl
-//        $request = curl_init($post_url); // initiate curl object
-//        curl_setopt($request, CURLOPT_HEADER, 0); // set to 0 to eliminate header info from response
-//        curl_setopt($request, CURLOPT_RETURNTRANSFER, 1); // Returns response data instead of TRUE(1)
-//        curl_setopt($request, CURLOPT_POSTFIELDS, $post_string); // use HTTP POST to send form data
-//        curl_setopt($request, CURLOPT_SSL_VERIFYPEER, FALSE); // uncomment this line if you get no gateway response.
-//        $post_response = curl_exec($request); // execute curl post and store results in $post_response
-//        // additional options may be required depending upon your server configuration
-//        // you can find documentation on curl options at http://www.php.net/curl_setopt
-//        curl_close ($request); // close curl object
-//
-//        // This line takes the response and breaks it into an array using the specified delimiting character
-//        $response_array = explode($post_values["x_delim_char"],$post_response);
-//        if($response_array[0] == 1)
-//        {
-//            $order->payment_transaction_id = $response_array[4];
-//            $order->updateStatus("voided");
-//            return true;
-//        }
-//        else
-//        {
-//            //$order->status = "error";
-//            $order->errorcode = $response_array[2];
-//            $order->error = $response_array[3];
-//            $order->shorterror = $response_array[3];
-//            return false;
-//        }
-//    }
-
     function charge(&$order)
     {
         if (empty($order->code))
@@ -609,15 +515,15 @@ class PMProGateway_mpesa extends PMProGateway
             $order->updateStatus("success");
 
             // update mpesa transactions table
-            $wpdb->query( $wpdb->prepare("UPDATE $table_name 
+            $wpdb->query($wpdb->prepare("UPDATE $table_name 
                 SET order_id = %s 
-             WHERE msisdn = %s AND order_id=-1",$order->code, $mpesa_msisdn)
+             WHERE msisdn = %s AND order_id=-1", $order->code, $mpesa_msisdn)
             );
             return true;
         } else {
             // the amount is not fully paid return error to checkout page
 
-            if($total_amount_paid_by_msisdn > 0){
+            if ($total_amount_paid_by_msisdn > 0) {
                 //partial payment
                 global $pmpro_error_fields;
                 $balance_amount = $amount - $total_amount_paid_by_msisdn;
@@ -625,7 +531,7 @@ class PMProGateway_mpesa extends PMProGateway
                 $pmpro_error_fields["balance_amount"] = $balance_amount;
                 $message = sprintf("Received KES %s, please pay KES %s to complete the subscription.",
                     $total_amount_paid_by_msisdn, $balance_amount);
-            }else{
+            } else {
                 //no money received
                 $message = sprintf("No payment has been received from the msisdn %s.", $mpesa_msisdn);
             }
@@ -643,7 +549,7 @@ class PMProGateway_mpesa extends PMProGateway
     function subscribe(&$order)
     {
         //create a code for the order
-        if(empty($order->code))
+        if (empty($order->code))
             $order->code = $order->getRandomCode();
 
         //filter order before subscription. use with care.
@@ -655,6 +561,91 @@ class PMProGateway_mpesa extends PMProGateway
         $order->status = "success";
         $order->subscription_transaction_id = "mpesa" . $order->code;
         return true;
+    }
+
+    function pmpro_mpesa_ipn_listener()
+    {
+        // check for your custom query var
+        if (!isset($_GET['pmpro_mpesa_ipn'])) {
+            // if query var is not present just return
+            return;
+        }
+        // todo validate request is from mpesa
+        // validate_payload
+        // check if payload exists in db
+        // save the payload to the database
+        // exit
+        $this->c2b_confirmation_request();
+        exit;
+    }
+
+
+    function c2b_confirmation_request()
+    {
+        $callbackJSONData = file_get_contents('php://input');
+        $callbackData = json_decode($callbackJSONData);
+        $transactionType = $callbackData->TransactionType;
+        $transaction_id = $callbackData->TransID;
+        $transTime = $callbackData->TransTime;
+        $transaction_amount = $callbackData->TransAmount;
+        $businessShortCode = $callbackData->BusinessShortCode;
+        $billRefNumber = $callbackData->BillRefNumber;
+        $invoiceNumber = $callbackData->InvoiceNumber;
+        $orgAccountBalance = $callbackData->OrgAccountBalance;
+        $thirdPartyTransID = $callbackData->ThirdPartyTransID;
+        $msisdn = $callbackData->MSISDN;
+        $firstName = $callbackData->FirstName;
+        $middleName = $callbackData->MiddleName;
+        $lastName = $callbackData->LastName;
+        $result = [
+            $transTime => $transTime,
+            $transaction_amount => $transaction_amount,
+            $businessShortCode => $businessShortCode,
+            $billRefNumber => $billRefNumber,
+            $invoiceNumber => $invoiceNumber,
+            $orgAccountBalance => $orgAccountBalance,
+            $thirdPartyTransID => $thirdPartyTransID,
+            $msisdn => $msisdn,
+            $firstName => $firstName,
+            $lastName => $lastName,
+            $middleName => $middleName,
+            $transaction_id => $transaction_id,
+            $transactionType => $transactionType
+        ];
+        $payload = json_encode($result);
+        global $wpdb;
+
+        //to use account_number for paybills.
+        $table_name = $wpdb->prefix . 'mpesa_pmpro';
+
+        $transaction_exists = $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->users WHERE mpesa_transaction_id=$transaction_id");
+
+        if (!empty($transaction_exists)) {
+
+            return false;
+        } else {
+            //save transaction in db
+            /*
+             * INSERT INTO wordpress.wp_mpesa_pmpro (id, msisdn, time, user_id, amount, order_id, payload, mpesa_transaction_id) VALUES (1, '555', '2018-09-04 19:44:18', '1', 5, 'D9050E902E', 'hjgjhgj', null);
+             *
+             * */
+            $insert_query = "INSERT INTO $table_name (msisdn, amount, payload, mpesa_transaction_id) VALUES ($msisdn, $transaction_amount, $payload, $transaction_id);";
+            $wpdb->query($insert_query);
+            // todo confirm result of the query
+            return true;
+        }
+
+        /*
+         *
+         * id bigint PRIMARY KEY NOT NULL AUTO_INCREMENT,
+        msisdn varchar(20) NOT NULL,
+        time datetime DEFAULT CURRENT_TIMESTAMP,
+        user_id varchar(255),
+        amount float NOT NULL,
+        order_id varchar(255) NOT NULL DEFAULT -1,
+        payload longtext,
+        mpesa_transaction_id varchar(50)
+         * */
     }
 
 
