@@ -590,7 +590,7 @@ class PMProGateway_mpesa extends PMProGateway
             $invoiceNumber=$callbackData->InvoiceNumber;
             $orgAccountBalance=$callbackData->OrgAccountBalance;
             $thirdPartyTransID=$callbackData->ThirdPartyTransID;
-            $MSISDN=$callbackData->MSISDN;
+            $msisdn=$callbackData->MSISDN;
             $firstName=$callbackData->FirstName;
             $middleName=$callbackData->MiddleName;
             $lastName=$callbackData->LastName;
@@ -602,14 +602,14 @@ class PMProGateway_mpesa extends PMProGateway
                 $invoiceNumber=>$invoiceNumber,
                 $orgAccountBalance=>$orgAccountBalance,
                 $thirdPartyTransID=>$thirdPartyTransID,
-                $MSISDN=>$MSISDN,
+                $msisdn=>$msisdn,
                 $firstName=>$firstName,
                 $lastName=>$lastName,
                 $middleName=>$middleName,
                 $transaction_id=>$transaction_id,
                 $transactionType=>$transactionType
             ];
-
+        $payload = json_encode($result);
         global $wpdb;
 
         //to use account_number for paybills.
@@ -626,7 +626,7 @@ class PMProGateway_mpesa extends PMProGateway
              * INSERT INTO wordpress.wp_mpesa_pmpro (id, msisdn, time, user_id, amount, order_id, payload, mpesa_transaction_id) VALUES (1, '555', '2018-09-04 19:44:18', '1', 5, 'D9050E902E', 'hjgjhgj', null);
              *
              * */
-            $insert_query = "INSERT INTO $table_name (msisdn, amount, payload, mpesa_transaction_id) VALUES (1, '555', '2018-09-04 19:44:18', '1', 5, 'D9050E902E', 'hjgjhgj', null);";
+            $insert_query = "INSERT INTO $table_name (msisdn, amount, payload, mpesa_transaction_id) VALUES ($msisdn, $transaction_amount, $payload, $transaction_id);";
 
         }
         $total_amount_paid_by_msisdn = $wpdb->get_var("SELECT SUM(amount) AS total_amount FROM $table_name WHERE msisdn=$mpesa_msisdn AND order_id=-1;");
