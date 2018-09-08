@@ -163,11 +163,11 @@ class PMProGateway_mpesa extends PMProGateway
         </tr>
         <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
             <th scope="row" valign="top">
-                <label for="secret_plugin_uid"><?php _e('API Key', 'paid-memberships-pro'); ?>:</label>
+                <label for="pmpro_mpesa_uid"><?php _e('pmpro-mpesa-gateway secret uid', 'paid-memberships-pro'); ?>:</label>
             </th>
             <td>
-                <input type="text" id="mpesa_api_key" name="mpesa_api_key" size="60"
-                       value="<?php echo esc_attr($values['mpesa_api_key']) ?>"/>
+                <input type="text" disabled id="pmpro_mpesa_uid" name="pmpro_mpesa_uid" size="60"
+                       value="<?php echo esc_attr($values['pmpro_mpesa_uid']) ?>"/>
             </td>
         </tr>
         <?php
