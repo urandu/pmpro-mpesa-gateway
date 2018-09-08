@@ -577,38 +577,38 @@ class PMProGateway_mpesa extends PMProGateway
         exit;
     }
 
-    function processB2BRequestCallback(){
-        $callbackJSONData=file_get_contents('php://input');
-        $callbackData=json_decode($callbackJSONData);
-        $resultCode=$callbackData->Result->ResultCode;
-        $resultDesc=$callbackData->Result->ResultDesc;
-        $originatorConversationID=$callbackData->Result->OriginatorConversationID;
-        $conversationID=$callbackData->Result->ConversationID;
-        $transaction_id=$callbackData->Result->TransactionID;
-        $transactionReceipt=$callbackData->Result->ResultParameters->ResultParameter[0]->Value;
-        $transactionAmount=$callbackData->Result->ResultParameters->ResultParameter[1]->Value;
-        $b2CWorkingAccountAvailableFunds=$callbackData->Result->ResultParameters->ResultParameter[2]->Value;
-        $b2CUtilityAccountAvailableFunds=$callbackData->Result->ResultParameters->ResultParameter[3]->Value;
-        $transactionCompletedDateTime=$callbackData->Result->ResultParameters->ResultParameter[4]->Value;
-        $receiverPartyPublicName=$callbackData->Result->ResultParameters->ResultParameter[5]->Value;
-        $B2CChargesPaidAccountAvailableFunds=$callbackData->Result->ResultParameters->ResultParameter[6]->Value;
-        $B2CRecipientIsRegisteredCustomer=$callbackData->Result->ResultParameters->ResultParameter[7]->Value;
-
-        $result=[
-            "resultCode"=>$resultCode,
-            "resultDesc"=>$resultDesc,
-            "originatorConversationID"=>$originatorConversationID,
-            "conversationID"=>$conversationID,
-            "transactionID"=>$transaction_id,
-            "transactionReceipt"=>$transactionReceipt,
-            "transactionAmount"=>$transactionAmount,
-            "b2CWorkingAccountAvailableFunds"=>$b2CWorkingAccountAvailableFunds,
-            "b2CUtilityAccountAvailableFunds"=>$b2CUtilityAccountAvailableFunds,
-            "transactionCompletedDateTime"=>$transactionCompletedDateTime,
-            "receiverPartyPublicName"=>$receiverPartyPublicName,
-            "B2CChargesPaidAccountAvailableFunds"=>$B2CChargesPaidAccountAvailableFunds,
-            "B2CRecipientIsRegisteredCustomer"=>$B2CRecipientIsRegisteredCustomer
-        ];
+    
+        public static function processC2BRequestValidation(){
+            $callbackJSONData=file_get_contents('php://input');
+            $callbackData=json_decode($callbackJSONData);
+            $transactionType=$callbackData->TransactionType;
+            $transaction_id=$callbackData->TransID;
+            $transTime=$callbackData->TransTime;
+            $transaction_amount=$callbackData->TransAmount;
+            $businessShortCode=$callbackData->BusinessShortCode;
+            $billRefNumber=$callbackData->BillRefNumber;
+            $invoiceNumber=$callbackData->InvoiceNumber;
+            $orgAccountBalance=$callbackData->OrgAccountBalance;
+            $thirdPartyTransID=$callbackData->ThirdPartyTransID;
+            $MSISDN=$callbackData->MSISDN;
+            $firstName=$callbackData->FirstName;
+            $middleName=$callbackData->MiddleName;
+            $lastName=$callbackData->LastName;
+            $result=[
+                $transTime=>$transTime,
+                $transaction_amount=>$transaction_amount,
+                $businessShortCode=>$businessShortCode,
+                $billRefNumber=>$billRefNumber,
+                $invoiceNumber=>$invoiceNumber,
+                $orgAccountBalance=>$orgAccountBalance,
+                $thirdPartyTransID=>$thirdPartyTransID,
+                $MSISDN=>$MSISDN,
+                $firstName=>$firstName,
+                $lastName=>$lastName,
+                $middleName=>$middleName,
+                $transaction_id=>$transaction_id,
+                $transactionType=>$transactionType
+            ];
 
         global $wpdb;
 
