@@ -624,9 +624,9 @@ class PMProGateway_mpesa extends PMProGateway
             //save transaction in db
             /*
              * INSERT INTO wordpress.wp_mpesa_pmpro (id, msisdn, time, user_id, amount, order_id, payload, mpesa_transaction_id) VALUES (1, '555', '2018-09-04 19:44:18', '1', 5, 'D9050E902E', 'hjgjhgj', null);
-INSERT INTO wordpress.wp_mpesa_pmpro (id, msisdn, time, user_id, amount, order_id, payload, mpesa_transaction_id) VALUES (2, '555', '2018-09-04 19:44:18', '1', 4, 'D9050E902E', 'hjgjhgj', null);
              *
              * */
+            $insert_query = "INSERT INTO $table_name (msisdn, amount, payload, mpesa_transaction_id) VALUES (1, '555', '2018-09-04 19:44:18', '1', 5, 'D9050E902E', 'hjgjhgj', null);";
 
         }
         $total_amount_paid_by_msisdn = $wpdb->get_var("SELECT SUM(amount) AS total_amount FROM $table_name WHERE msisdn=$mpesa_msisdn AND order_id=-1;");
