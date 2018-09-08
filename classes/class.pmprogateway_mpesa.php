@@ -568,6 +568,28 @@ function pmpro_mpesa_ipn_listener()
         return;
 
     }
+
+    if (!isset($_GET['uid'])) {
+
+        $_400_response = Array(
+            "status" => "error",
+            "message"=>"uid not set"
+        );
+
+        echo(json_encode($_400_response));
+        return;
+    }
+
+    if($_GET['uid']!= ""){
+        $_403_response = Array(
+            "status" => "error",
+            "message"=>"uid invalid"
+        );
+
+        echo(json_encode($_403_response));
+        return;
+    }
+    
     // todo validate request is from mpesa
     // todo validate_payload
     c2b_confirmation_request();
