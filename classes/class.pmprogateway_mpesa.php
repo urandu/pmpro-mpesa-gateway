@@ -569,7 +569,7 @@ class PMProGateway_mpesa extends PMProGateway
             // if query var is not present just return
             return;
         }
-
+        // validate request is from mpesa
         // validate_payload
         // check if payload exists in db
         // save the payload to the database
