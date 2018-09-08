@@ -4,7 +4,7 @@ add_action('init', array('PMProGateway_mpesa', 'init'));
 
 
 global $mpesa_db_version;
-$mpesa_db_version = '1.1';
+$mpesa_db_version = '1.0';
 
 function mpesa_install()
 {
@@ -30,6 +30,61 @@ function mpesa_install()
     dbDelta($sql);
 
     add_option('mpesa_db_version', $mpesa_db_version);
+}
+function pmpro_mpesa_ipn_listener()
+{
+    // check for your custom query var
+    if (!isset($_GET['pmpro_mpesa_ipn'])) {
+        // if query var is not present just return
+
+        return;
+
+    }
+    // todo validate request is from mpesa
+    // validate_payload
+    // check if payload exists in db
+    // save the payload to the database
+    // exit
+    c2b_confirmation_request();
+    exit;
+}
+
+
+function c2b_confirmation_request()
+{
+    $callbackJSONData = file_get_contents('php://input');
+    $callbackData = json_decode($callbackJSONData);
+    $transactionType = $callbackData->TransactionType;
+    $transaction_id = $callbackData->TransID;
+    $transTime = $callbackData->TransTime;
+    $transaction_amount = $callbackData->TransAmount;
+    $businessShortCode = $callbackData->BusinessShortCode;
+    $billRefNumber = $callbackData->BillRefNumber;
+    $invoiceNumber = $callbackData->InvoiceNumber;
+    $orgAccountBalance = $callbackData->OrgAccountBalance;
+    $thirdPartyTransID = $callbackData->ThirdPartyTransID;
+    $msisdn = $callbackData->MSISDN;
+    $firstName = $callbackData->FirstName;
+    $middleName = $callbackData->MiddleName;
+    $lastName = $callbackData->LastName;
+
+    $payload = $callbackJSONData;
+    global $wpdb;
+
+    //to use account_number for paybills.
+    $table_name = $wpdb->prefix . 'pmpro_mpesa';
+    $sql_string = sprintf("SELECT COUNT(*) FROM %s WHERE mpesa_transaction_id='%s'",$table_name,$transaction_id);
+    $transaction_exists = $wpdb->get_var($sql_string);
+    if (!empty($transaction_exists)) {
+        return false;
+    } else {
+        //save transaction in db
+        $insert_query = sprintf("INSERT INTO %s (msisdn, amount, payload, mpesa_transaction_id) VALUES (%s, %s, '%s','%s');",$table_name, $msisdn, $transaction_amount,$payload, $transaction_id);
+        $wpdb->query($insert_query);
+        // todo confirm result of the query
+        return true;
+    }
+
 }
 
 
@@ -83,7 +138,6 @@ class PMProGateway_mpesa extends PMProGateway
             add_filter('pmpro_billing_order', array('PMProGateway_mpesa', 'pmpro_checkout_order'));
             add_filter('pmpro_required_billing_fields', array('PMProGateway_mpesa', 'pmpro_required_billing_fields'));
             add_filter('pmpro_include_payment_information_fields', array('PMProGateway_mpesa', 'pmpro_include_payment_information_fields'));
-
         }
 
 
@@ -506,7 +560,10 @@ class PMProGateway_mpesa extends PMProGateway
 
         //to use account_number for paybills.
         $mpesa_msisdn = $order->mpesa_msisdn;
-        $table_name = $wpdb->prefix . 'mpesa_pmpro';
+        $mpesa_msisdn = str_replace("07","2547",$mpesa_msisdn);
+        $mpesa_msisdn = str_replace("+","",$mpesa_msisdn);
+        $mpesa_msisdn = trim($mpesa_msisdn);
+        $table_name = $wpdb->prefix . 'pmpro_mpesa';
         $total_amount_paid_by_msisdn = $wpdb->get_var("SELECT SUM(amount) AS total_amount FROM $table_name WHERE msisdn=$mpesa_msisdn AND order_id=-1;");
 
         if ($total_amount_paid_by_msisdn >= $amount) {
@@ -564,90 +621,6 @@ class PMProGateway_mpesa extends PMProGateway
         return true;
     }
 
-    function pmpro_mpesa_ipn_listener()
-    {
-        // check for your custom query var
-        if (!isset($_GET['pmpro_mpesa_ipn'])) {
-            // if query var is not present just return
-            return;
-        }
-        // todo validate request is from mpesa
-        // validate_payload
-        // check if payload exists in db
-        // save the payload to the database
-        // exit
-        $this->c2b_confirmation_request();
-        exit;
-    }
-
-
-    function c2b_confirmation_request()
-    {
-        $callbackJSONData = file_get_contents('php://input');
-        $callbackData = json_decode($callbackJSONData);
-        $transactionType = $callbackData->TransactionType;
-        $transaction_id = $callbackData->TransID;
-        $transTime = $callbackData->TransTime;
-        $transaction_amount = $callbackData->TransAmount;
-        $businessShortCode = $callbackData->BusinessShortCode;
-        $billRefNumber = $callbackData->BillRefNumber;
-        $invoiceNumber = $callbackData->InvoiceNumber;
-        $orgAccountBalance = $callbackData->OrgAccountBalance;
-        $thirdPartyTransID = $callbackData->ThirdPartyTransID;
-        $msisdn = $callbackData->MSISDN;
-        $firstName = $callbackData->FirstName;
-        $middleName = $callbackData->MiddleName;
-        $lastName = $callbackData->LastName;
-        $result = [
-            $transTime => $transTime,
-            $transaction_amount => $transaction_amount,
-            $businessShortCode => $businessShortCode,
-            $billRefNumber => $billRefNumber,
-            $invoiceNumber => $invoiceNumber,
-            $orgAccountBalance => $orgAccountBalance,
-            $thirdPartyTransID => $thirdPartyTransID,
-            $msisdn => $msisdn,
-            $firstName => $firstName,
-            $lastName => $lastName,
-            $middleName => $middleName,
-            $transaction_id => $transaction_id,
-            $transactionType => $transactionType
-        ];
-        $payload = json_encode($result);
-        global $wpdb;
-
-        //to use account_number for paybills.
-        $table_name = $wpdb->prefix . 'mpesa_pmpro';
-
-        $transaction_exists = $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->users WHERE mpesa_transaction_id=$transaction_id");
-
-        if (!empty($transaction_exists)) {
-
-            return false;
-        } else {
-            //save transaction in db
-            /*
-             * INSERT INTO wordpress.wp_mpesa_pmpro (id, msisdn, time, user_id, amount, order_id, payload, mpesa_transaction_id) VALUES (1, '555', '2018-09-04 19:44:18', '1', 5, 'D9050E902E', 'hjgjhgj', null);
-             *
-             * */
-            $insert_query = "INSERT INTO $table_name (msisdn, amount, payload, mpesa_transaction_id) VALUES ($msisdn, $transaction_amount, $payload, $transaction_id);";
-            $wpdb->query($insert_query);
-            // todo confirm result of the query
-            return true;
-        }
-
-        /*
-         *
-         * id bigint PRIMARY KEY NOT NULL AUTO_INCREMENT,
-        msisdn varchar(20) NOT NULL,
-        time datetime DEFAULT CURRENT_TIMESTAMP,
-        user_id varchar(255),
-        amount float NOT NULL,
-        order_id varchar(255) NOT NULL DEFAULT -1,
-        payload longtext,
-        mpesa_transaction_id varchar(50)
-         * */
-    }
 
 
 }
