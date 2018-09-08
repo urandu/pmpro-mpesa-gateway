@@ -9,3 +9,4 @@ define("PMPRO_MPESAGATEWAY_DIR", dirname(__FILE__));
 
 //load payment gateway class
 require_once(PMPRO_MPESAGATEWAY_DIR . "/classes/class.pmprogateway_mpesa.php");
+register_activation_hook( __FILE__, 'mpesa_install' );
