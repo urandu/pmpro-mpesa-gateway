@@ -577,7 +577,7 @@ function pmpro_mpesa_ipn_listener()
         );
 
         echo(json_encode($_400_response));
-        return;
+        //return;
     }
 
     if($_GET['uid']!= pmpro_getOption("pmrpo_mpesa_uid")){
