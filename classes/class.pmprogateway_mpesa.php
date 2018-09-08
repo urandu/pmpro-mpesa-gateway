@@ -580,7 +580,7 @@ function pmpro_mpesa_ipn_listener()
         return;
     }
 
-    if($_GET['uid']!= ""){
+    if($_GET['uid']!= pmpro_getOption("pmrpo_mpesa_uid")){
         $_403_response = Array(
             "status" => "error",
             "message"=>"uid invalid"
