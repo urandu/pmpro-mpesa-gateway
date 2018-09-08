@@ -82,7 +82,7 @@ class PMProGateway_mpesa extends PMProGateway
             add_filter('pmpro_billing_order', array('PMProGateway_mpesa', 'pmpro_checkout_order'));
             add_filter('pmpro_required_billing_fields', array('PMProGateway_mpesa', 'pmpro_required_billing_fields'));
             add_filter('pmpro_include_payment_information_fields', array('PMProGateway_mpesa', 'pmpro_include_payment_information_fields'));
-            add_action( 'init', 'pmpro_mpesa_ipn_listener' );
+            add_action('init', 'pmpro_mpesa_ipn_listener');
         }
 
 
@@ -563,9 +563,10 @@ class PMProGateway_mpesa extends PMProGateway
         return true;
     }
 
-    function pmpro_mpesa_ipn_listener() {
+    function pmpro_mpesa_ipn_listener()
+    {
         // check for your custom query var
-        if ( ! isset( $_GET['pmpro_mpesa_ipn'] ) ) {
+        if (!isset($_GET['pmpro_mpesa_ipn'])) {
             // if query var is not present just return
             return;
         }
@@ -574,53 +575,55 @@ class PMProGateway_mpesa extends PMProGateway
         // check if payload exists in db
         // save the payload to the database
         // exit
+        $this->c2b_confirmation_request();
         exit;
     }
 
-    
-        function c2b_confirmation_request(){
-            $callbackJSONData=file_get_contents('php://input');
-            $callbackData=json_decode($callbackJSONData);
-            $transactionType=$callbackData->TransactionType;
-            $transaction_id=$callbackData->TransID;
-            $transTime=$callbackData->TransTime;
-            $transaction_amount=$callbackData->TransAmount;
-            $businessShortCode=$callbackData->BusinessShortCode;
-            $billRefNumber=$callbackData->BillRefNumber;
-            $invoiceNumber=$callbackData->InvoiceNumber;
-            $orgAccountBalance=$callbackData->OrgAccountBalance;
-            $thirdPartyTransID=$callbackData->ThirdPartyTransID;
-            $msisdn=$callbackData->MSISDN;
-            $firstName=$callbackData->FirstName;
-            $middleName=$callbackData->MiddleName;
-            $lastName=$callbackData->LastName;
-            $result=[
-                $transTime=>$transTime,
-                $transaction_amount=>$transaction_amount,
-                $businessShortCode=>$businessShortCode,
-                $billRefNumber=>$billRefNumber,
-                $invoiceNumber=>$invoiceNumber,
-                $orgAccountBalance=>$orgAccountBalance,
-                $thirdPartyTransID=>$thirdPartyTransID,
-                $msisdn=>$msisdn,
-                $firstName=>$firstName,
-                $lastName=>$lastName,
-                $middleName=>$middleName,
-                $transaction_id=>$transaction_id,
-                $transactionType=>$transactionType
-            ];
+
+    function c2b_confirmation_request()
+    {
+        $callbackJSONData = file_get_contents('php://input');
+        $callbackData = json_decode($callbackJSONData);
+        $transactionType = $callbackData->TransactionType;
+        $transaction_id = $callbackData->TransID;
+        $transTime = $callbackData->TransTime;
+        $transaction_amount = $callbackData->TransAmount;
+        $businessShortCode = $callbackData->BusinessShortCode;
+        $billRefNumber = $callbackData->BillRefNumber;
+        $invoiceNumber = $callbackData->InvoiceNumber;
+        $orgAccountBalance = $callbackData->OrgAccountBalance;
+        $thirdPartyTransID = $callbackData->ThirdPartyTransID;
+        $msisdn = $callbackData->MSISDN;
+        $firstName = $callbackData->FirstName;
+        $middleName = $callbackData->MiddleName;
+        $lastName = $callbackData->LastName;
+        $result = [
+            $transTime => $transTime,
+            $transaction_amount => $transaction_amount,
+            $businessShortCode => $businessShortCode,
+            $billRefNumber => $billRefNumber,
+            $invoiceNumber => $invoiceNumber,
+            $orgAccountBalance => $orgAccountBalance,
+            $thirdPartyTransID => $thirdPartyTransID,
+            $msisdn => $msisdn,
+            $firstName => $firstName,
+            $lastName => $lastName,
+            $middleName => $middleName,
+            $transaction_id => $transaction_id,
+            $transactionType => $transactionType
+        ];
         $payload = json_encode($result);
         global $wpdb;
 
         //to use account_number for paybills.
         $table_name = $wpdb->prefix . 'mpesa_pmpro';
 
-        $transaction_exists = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->users WHERE mpesa_transaction_id=$transaction_id" );
+        $transaction_exists = $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->users WHERE mpesa_transaction_id=$transaction_id");
 
-        if(!empty($transaction_exists)){
+        if (!empty($transaction_exists)) {
 
             return false;
-        }else{
+        } else {
             //save transaction in db
             /*
              * INSERT INTO wordpress.wp_mpesa_pmpro (id, msisdn, time, user_id, amount, order_id, payload, mpesa_transaction_id) VALUES (1, '555', '2018-09-04 19:44:18', '1', 5, 'D9050E902E', 'hjgjhgj', null);
