@@ -587,7 +587,7 @@ function pmpro_mpesa_ipn_listener()
         );
 
         echo(json_encode($_403_response));
-        return;
+        //return;
     }
 
     // todo validate request is from mpesa
