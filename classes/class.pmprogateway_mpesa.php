@@ -105,6 +105,7 @@ class PMProGateway_mpesa extends PMProGateway
             'use_ssl',
             'mpesa_secret_key',
             'mpesa_api_key',
+            'pmpro_mpesa_uid',
             'tax_state',
             'tax_rate',
             'accepted_credit_cards'
@@ -163,11 +164,12 @@ class PMProGateway_mpesa extends PMProGateway
         </tr>
         <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
             <th scope="row" valign="top">
-                <label for="pmpro_mpesa_uid"><?php _e('pmpro-mpesa-gateway secret uid', 'paid-memberships-pro'); ?>:</label>
+                <label for="pmpro_mpesa_uid"><?php _e('pmpro-mpesa-gateway secret uid', 'paid-memberships-pro'); ?></label>
             </th>
             <td>
-                <input type="text" disabled id="pmpro_mpesa_uid" name="pmpro_mpesa_uid" size="60"
-                       value="<?php if(!pmpro_getOption("pmpro_mpesa_uid")){echo wp_generate_uuid4();}echo esc_attr($values['pmpro_mpesa_uid']) ?>"/>
+                <?php echo esc_attr($values['pmpro_mpesa_uid']); ?>
+                <input type="text" hidden id="pmpro_mpesa_uid" name="pmpro_mpesa_uid" size="60"
+                       value="<?php if(!empty($values['pmpro_mpesa_uid'])){echo esc_attr($values['pmpro_mpesa_uid'])  ;} else {echo wp_generate_uuid4();}?>"/>
             </td>
         </tr>
         <?php
