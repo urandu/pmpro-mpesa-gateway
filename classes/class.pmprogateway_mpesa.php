@@ -634,4 +634,3 @@ function c2b_confirmation_request()
     }
 
 }
-
