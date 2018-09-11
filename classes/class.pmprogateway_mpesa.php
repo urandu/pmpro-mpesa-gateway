@@ -144,6 +144,69 @@ class PMProGateway_mpesa extends PMProGateway
                 <?php _e('Mpesa Settings', 'paid-memberships-pro'); ?>
             </td>
         </tr>
+
+        <?php
+
+        $gateway_environment = pmpro_getOption("gateway_environment");
+
+        if($gateway_environment == "live"){
+
+            ?>
+
+            <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
+                <th scope="row" valign="top">
+                    <label for="rrr"><?php _e('Confirmation URL Registration Production', 'paid-memberships-pro'); ?>:</label>
+                </th>
+
+
+                <td>
+                    <?php
+                    if (pmpro_getOption("pmpro_mpesa_url_reg_status_production") != 1) {
+                        $message = "Not Registered: <a href=\"".home_url( '/?mpesa_url_registration=live')."\" target=\"_blank\">Click here to register confirmation URL</a>";
+                    }else{
+                        $message = "Confirmation URL Registered: <a href=\"".home_url( '/?mpesa_url_registration=live')."\" target=\"_blank\">Click here to register confirmation URL again</a>";
+
+                    }
+
+                    echo $message;
+
+                    ?>
+                </td>
+
+
+            </tr>
+            <?php
+
+        } else{
+            ?>
+            <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
+                <th scope="row" valign="top">
+                    <label for="rrr"><?php _e('Confirmation URL Registration Sandbox', 'paid-memberships-pro'); ?>:</label>
+                </th>
+
+
+                <td>
+                    <?php
+                    if (pmpro_getOption("pmpro_mpesa_url_reg_status_production") != 1) {
+                        $message = "Not Registered: <a href=\"".home_url( '/?mpesa_url_registration=live')."\" target=\"_blank\">Click here to register confirmation URL</a>";
+                    }else{
+                        $message = "Confirmation URL Registered: <a href=\"".home_url( '/?mpesa_url_registration=live')."\" target=\"_blank\">Click here to register confirmation URL again</a>";
+
+                    }
+
+                    echo $message;
+
+                    ?>
+                </td>
+
+
+            </tr>
+
+            <?php
+        }
+
+        ?>
+
         <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
             <th scope="row" valign="top">
                 <label for="mpesa_secret_key"><?php _e('Secret key', 'paid-memberships-pro'); ?>:</label>
@@ -169,7 +232,11 @@ class PMProGateway_mpesa extends PMProGateway
             <td>
                 <?php echo esc_attr($values['pmpro_mpesa_uid']); ?>
                 <input type="text" hidden id="pmpro_mpesa_uid" name="pmpro_mpesa_uid" size="60"
-                       value="<?php if(!empty($values['pmpro_mpesa_uid'])){echo esc_attr($values['pmpro_mpesa_uid'])  ;} else {echo wp_generate_uuid4();}?>"/>
+                       value="<?php if (!empty($values['pmpro_mpesa_uid'])) {
+                           echo esc_attr($values['pmpro_mpesa_uid']);
+                       } else {
+                           echo wp_generate_uuid4();
+                       } ?>"/>
             </td>
         </tr>
         <?php
@@ -584,17 +651,17 @@ function pmpro_mpesa_ipn_listener()
 
         $_400_response = Array(
             "status" => "error",
-            "message"=>"uid not set"
+            "message" => "uid not set"
         );
 
         echo(json_encode($_400_response));
         //return;
     }
 
-    if($_GET['uid']!= pmpro_getOption("pmrpo_mpesa_uid")){
+    if ($_GET['uid'] != pmpro_getOption("pmrpo_mpesa_uid")) {
         $_403_response = Array(
             "status" => "error",
-            "message"=>"uid invalid"
+            "message" => "uid invalid"
         );
 
         echo(json_encode($_403_response));
@@ -634,3 +701,5 @@ function c2b_confirmation_request()
     }
 
 }
+
+
