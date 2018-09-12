@@ -43,6 +43,9 @@ class PMProGateway_mpesa extends PMProGateway
         add_action('pmpro_deactivation', array('PMProGateway_mpesa', 'pmpro_deactivation'));
         add_action('pmpro_cron_mpesa_subscription_updates', array('PMProGateway_mpesa', 'pmpro_cron_mpesa_subscription_updates'));
         add_action('init', 'pmpro_mpesa_ipn_listener');
+        add_action('init', 'mpesa_url_registration');
+        add_action('init', 'simulate_c2b');
+
 
 
         //code to add at checkout if mpesa is the current gateway
@@ -189,9 +192,9 @@ class PMProGateway_mpesa extends PMProGateway
                 <td>
                     <?php
                     if (pmpro_getOption("pmpro_mpesa_url_reg_status_production") != 1) {
-                        $message = "Not Registered: <a href=\"".home_url( '/?mpesa_url_registration=live')."\" target=\"_blank\">Click here to register confirmation URL</a>";
+                        $message = "Not Registered: <a href=\"".home_url( '/?mpesa_url_registration=sandbox')."\" target=\"_blank\">Click here to register confirmation URL</a>";
                     }else{
-                        $message = "Confirmation URL Registered: <a href=\"".home_url( '/?mpesa_url_registration=live')."\" target=\"_blank\">Click here to register confirmation URL again</a>";
+                        $message = "Confirmation URL Registered: <a href=\"".home_url( '/?mpesa_url_registration=sandbox')."\" target=\"_blank\">Click here to register confirmation URL again</a>";
 
                     }
 
@@ -726,20 +729,29 @@ function mpesa_authorize()
     curl_setopt( $curl, CURLOPT_RETURNTRANSFER, 1 );
     curl_setopt( $curl, CURLOPT_SSL_VERIFYPEER, false );
     $curl_response = curl_exec( $curl );
-
+    print("pala");
+    print_r($curl_response);
     return json_decode( $curl_response )->access_token;
 }
 
 /**
  * Register confirmation endpoint
  */
-function register_urls()
+function mpesa_url_registration()
 {
+
+    // check for your custom query var
+    if (!isset($_GET['mpesa_url_registration'])) {
+        // if query var is not present just return
+
+        return;
+
+    }
     $token = mpesa_authorize();
     $gateway_environment = pmpro_getOption("gateway_environment");
     $short_code = pmpro_getOption("mpesa_short_code");
     $mpesa_uid = pmpro_getOption("pmpro_mpesa_uid");
-    $comfirmation_url = home_url( '/?pmpro_mpesa_ipn=1&uid='.$mpesa_uid);
+    $comfirmation_url = home_url( '/pmpro_mpesa_ipn/'.$mpesa_uid);
 
     $endpoint = ( $gateway_environment == 'live' ) ? 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl' : 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl';
     $curl = curl_init();
@@ -750,8 +762,9 @@ function register_urls()
         'ShortCode' 		=> $short_code,
         'ResponseType' 		=> 'Completed',
         'ConfirmationURL' 	=> $comfirmation_url,
-        'ValidationURL' 	=> ""
+        'ValidationURL' 	=> $comfirmation_url
     );
+    print_r($curl_post_data);
     $data_string = json_encode( $curl_post_data );
     curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
     curl_setopt( $curl, CURLOPT_POST, true );
@@ -764,5 +777,47 @@ function register_urls()
     } else {
         $status = "Sorry could not connect to Daraja. Check your configuration and try again.";
     }
-    return array( 'Registration status' => $status );
+    print_r( array( 'Registration status' => $status ));
+    exit;
+
+}
+
+function simulate_c2b(){
+
+    // check for your custom query var
+    if (!isset($_GET['simulate_c2b'])) {
+        // if query var is not present just return
+
+        return;
+
+    }
+    $url = 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/simulate';
+    $token = mpesa_authorize();
+    $short_code = pmpro_getOption("mpesa_short_code");
+
+
+    $curl = curl_init();
+    curl_setopt($curl, CURLOPT_URL, $url);
+    curl_setopt( $curl, CURLOPT_HTTPHEADER, array( 'Content-Type:application/json','Authorization:Bearer '.$token ) );
+
+    $curl_post_data = array(
+        //Fill in the request parameters with valid values
+        'ShortCode' => $short_code,
+        'CommandID' => 'CustomerPayBillOnline',
+        'Amount' => '20',
+        'Msisdn' => '254726430386',
+        'BillRefNumber' => 'ioioio'
+    );
+
+    $data_string = json_encode($curl_post_data);
+
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_POST, true);
+    curl_setopt($curl, CURLOPT_POSTFIELDS, $data_string);
+
+    $curl_response = curl_exec($curl);
+    print_r($curl_response);
+
+    echo $curl_response;
+    exit;
 }
