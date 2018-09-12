@@ -728,7 +728,8 @@ function register_urls()
     $token = mpesa_authorize();
     $gateway_environment = pmpro_getOption("gateway_environment");
     $short_code = pmpro_getOption("mpesa_short_code");
-    $comfirmation_url = home_url( '/?mpesa_url_registration=live');
+    $mpesa_uid = pmpro_getOption("pmpro_mpesa_uid");
+    $comfirmation_url = home_url( '/?pmpro_mpesa_ipn=1&uid='.$mpesa_uid);
 
     $endpoint = ( $gateway_environment == 'live' ) ? 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl' : 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl';
     $curl = curl_init();
