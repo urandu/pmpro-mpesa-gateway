@@ -729,7 +729,6 @@ function mpesa_authorize()
     curl_setopt( $curl, CURLOPT_RETURNTRANSFER, 1 );
     curl_setopt( $curl, CURLOPT_SSL_VERIFYPEER, false );
     $curl_response = curl_exec( $curl );
-    print("pala");
     return json_decode( $curl_response )->access_token;
 }
 
