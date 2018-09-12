@@ -105,6 +105,7 @@ class PMProGateway_mpesa extends PMProGateway
             'use_ssl',
             'mpesa_secret_key',
             'mpesa_api_key',
+            'mpesa_short_code',
             'pmpro_mpesa_uid',
             'tax_state',
             'tax_rate',
@@ -207,6 +208,15 @@ class PMProGateway_mpesa extends PMProGateway
 
         ?>
 
+        <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
+            <th scope="row" valign="top">
+                <label for="mpesa_short_code"><?php _e('Short code (paybill/till number)', 'paid-memberships-pro'); ?>:</label>
+            </th>
+            <td>
+                <input type="text" id="mpesa_short_code" name="mpesa_short_code" size="60"
+                       value="<?php echo esc_attr($values['mpesa_short_code']) ?>"/>
+            </td>
+        </tr>
         <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
             <th scope="row" valign="top">
                 <label for="mpesa_secret_key"><?php _e('Secret key', 'paid-memberships-pro'); ?>:</label>
@@ -702,4 +712,57 @@ function c2b_confirmation_request()
 
 }
 
+function mpesa_authorize()
+{
+    $api_key = pmpro_getOption("mpesa_api_key");
+    $secret_key = pmpro_getOption("mpesa_secret_key");
+    $gateway_environment = pmpro_getOption("gateway_environment");
+    $endpoint = ( $gateway_environment == 'live' ) ? 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials' : 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+    $credentials = base64_encode( $api_key.':'.$secret_key );
+    $curl = curl_init();
+    curl_setopt( $curl, CURLOPT_URL, $endpoint );
+    curl_setopt( $curl, CURLOPT_HTTPHEADER, array( 'Authorization: Basic '.$credentials ) );
+    curl_setopt( $curl, CURLOPT_HEADER, false );
+    curl_setopt( $curl, CURLOPT_RETURNTRANSFER, 1 );
+    curl_setopt( $curl, CURLOPT_SSL_VERIFYPEER, false );
+    $curl_response = curl_exec( $curl );
 
+    return json_decode( $curl_response )->access_token;
+}
+
+/**
+ * Register confirmation endpoint
+ */
+function register_urls()
+{
+    $token = mpesa_authorize();
+    $gateway_environment = pmpro_getOption("gateway_environment");
+    $short_code = pmpro_getOption("mpesa_short_code");
+    $mpesa_uid = pmpro_getOption("pmpro_mpesa_uid");
+    $comfirmation_url = home_url( '/?pmpro_mpesa_ipn=1&uid='.$mpesa_uid);
+
+    $endpoint = ( $gateway_environment == 'live' ) ? 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl' : 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl';
+    $curl = curl_init();
+    curl_setopt( $curl, CURLOPT_URL, $endpoint );
+    curl_setopt( $curl, CURLOPT_HTTPHEADER, array( 'Content-Type:application/json','Authorization:Bearer '.$token ) );
+
+    $curl_post_data = array(
+        'ShortCode' 		=> $short_code,
+        'ResponseType' 		=> 'Completed',
+        'ConfirmationURL' 	=> $comfirmation_url,
+        'ValidationURL' 	=> ""
+    );
+    $data_string = json_encode( $curl_post_data );
+    curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
+    curl_setopt( $curl, CURLOPT_POST, true );
+    curl_setopt( $curl, CURLOPT_POSTFIELDS, $data_string );
+    curl_setopt( $curl, CURLOPT_HEADER, false );
+    $content = curl_exec( $curl );
+    if ( $content ) {
+        $msg = json_decode( $content );
+        $status = isset( $msg->ResponseDescription ) ? $msg->ResponseDescription : "Coud not register URLs";
+    } else {
+        $status = "Sorry could not connect to Daraja. Check your configuration and try again.";
+    }
+    return array( 'Registration status' => $status );
+}
