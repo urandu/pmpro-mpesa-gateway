@@ -728,7 +728,7 @@ function register_urls()
     $token = mpesa_authorize();
     $gateway_environment = pmpro_getOption("gateway_environment");
     $short_code = pmpro_getOption("");
-    $comfirmation_url = ""
+    $comfirmation_url = "";
 
     $endpoint = ( $gateway_environment == 'live' ) ? 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl' : 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl';
     $curl = curl_init();
@@ -737,9 +737,9 @@ function register_urls()
 
     $curl_post_data = array(
         'ShortCode' 		=> $this->mpesa_shortcode,
-        'ResponseType' 		=> 'Cancelled',
+        'ResponseType' 		=> 'Completed',
         'ConfirmationURL' 	=> $this->mpesa_confirmation_url,
-        'ValidationURL' 	=> $this->mpesa_validation_url
+        'ValidationURL' 	=> ""
     );
     $data_string = json_encode( $curl_post_data );
     curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
