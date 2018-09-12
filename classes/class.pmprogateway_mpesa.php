@@ -702,4 +702,22 @@ function c2b_confirmation_request()
 
 }
 
+function mpesa_authorize()
+{
+    $api_key = pmpro_getOption("mpesa_api_key");
+    $secret_key = pmpro_getOption("mpesa_secret_key");
+    $gateway_environment = pmpro_getOption("gateway_environment");
+    $endpoint = ( $gateway_environment == 'live' ) ? 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials' : 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+    $credentials = base64_encode( $api_key.':'.$secret_key );
+    $curl = curl_init();
+    curl_setopt( $curl, CURLOPT_URL, $endpoint );
+    curl_setopt( $curl, CURLOPT_HTTPHEADER, array( 'Authorization: Basic '.$credentials ) );
+    curl_setopt( $curl, CURLOPT_HEADER, false );
+    curl_setopt( $curl, CURLOPT_RETURNTRANSFER, 1 );
+    curl_setopt( $curl, CURLOPT_SSL_VERIFYPEER, false );
+    $curl_response = curl_exec( $curl );
+
+    return json_decode( $curl_response )->access_token;
+}
+
 
