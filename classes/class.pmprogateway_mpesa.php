@@ -720,4 +720,34 @@ function mpesa_authorize()
     return json_decode( $curl_response )->access_token;
 }
 
+/**
+ * Register confirmation and validation endpoints
+ */
+public function register_urls()
+{
+    $token = $this->authenticate();
+    $endpoint = ( $this->mpesa_env == 'live' ) ? 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl' : 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl';
+    $curl = curl_init();
+    curl_setopt( $curl, CURLOPT_URL, $endpoint );
+    curl_setopt( $curl, CURLOPT_HTTPHEADER, array( 'Content-Type:application/json','Authorization:Bearer '.$token ) );
 
+    $curl_post_data = array(
+        'ShortCode' 		=> $this->mpesa_shortcode,
+        'ResponseType' 		=> 'Cancelled',
+        'ConfirmationURL' 	=> $this->mpesa_confirmation_url,
+        'ValidationURL' 	=> $this->mpesa_validation_url
+    );
+    $data_string = json_encode( $curl_post_data );
+    curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
+    curl_setopt( $curl, CURLOPT_POST, true );
+    curl_setopt( $curl, CURLOPT_POSTFIELDS, $data_string );
+    curl_setopt( $curl, CURLOPT_HEADER, false );
+    $content = curl_exec( $curl );
+    if ( $content ) {
+        $msg = json_decode( $content );
+        $status = isset( $msg->ResponseDescription ) ? $msg->ResponseDescription : "Coud not register URLs";
+    } else {
+        $status = "Sorry could not connect to Daraja. Check your configuration and try again.";
+    }
+    return array( 'Registration status' => $status );
+}
