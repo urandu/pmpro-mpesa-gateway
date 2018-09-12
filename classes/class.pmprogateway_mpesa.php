@@ -777,7 +777,6 @@ function mpesa_url_registration()
     } else {
         $status = "Sorry could not connect to Daraja. Check your configuration and try again.";
     }
-    print_r( array( 'Registration status' => $status ));
     exit;
 
 }
