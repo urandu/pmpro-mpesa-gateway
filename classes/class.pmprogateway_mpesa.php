@@ -105,6 +105,7 @@ class PMProGateway_mpesa extends PMProGateway
             'use_ssl',
             'mpesa_secret_key',
             'mpesa_api_key',
+            'mpesa_short_code',
             'pmpro_mpesa_uid',
             'tax_state',
             'tax_rate',
@@ -207,6 +208,15 @@ class PMProGateway_mpesa extends PMProGateway
 
         ?>
 
+        <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
+            <th scope="row" valign="top">
+                <label for="mpesa_short_code"><?php _e('Short code (paybill/till number)', 'paid-memberships-pro'); ?>:</label>
+            </th>
+            <td>
+                <input type="text" id="mpesa_short_code" name="mpesa_short_code" size="60"
+                       value="<?php echo esc_attr($values['mpesa_short_code']) ?>"/>
+            </td>
+        </tr>
         <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
             <th scope="row" valign="top">
                 <label for="mpesa_secret_key"><?php _e('Secret key', 'paid-memberships-pro'); ?>:</label>
