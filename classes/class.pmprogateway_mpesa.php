@@ -721,9 +721,9 @@ function mpesa_authorize()
 }
 
 /**
- * Register confirmation and validation endpoints
+ * Register confirmation endpoint
  */
-public function register_urls()
+function register_urls()
 {
     $token = $this->authenticate();
     $endpoint = ( $this->mpesa_env == 'live' ) ? 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl' : 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl';
