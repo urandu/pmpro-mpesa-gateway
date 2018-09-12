@@ -764,7 +764,6 @@ function mpesa_url_registration()
         'ConfirmationURL' 	=> $comfirmation_url,
         'ValidationURL' 	=> $comfirmation_url
     );
-    print_r($curl_post_data);
     $data_string = json_encode( $curl_post_data );
     curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
     curl_setopt( $curl, CURLOPT_POST, true );
