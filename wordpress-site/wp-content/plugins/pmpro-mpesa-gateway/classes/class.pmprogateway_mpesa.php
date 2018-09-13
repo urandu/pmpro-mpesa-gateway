@@ -670,8 +670,8 @@ function pmpro_mpesa_ipn_listener()
         echo(json_encode($_400_response));
         //return;
     }
-
-    if ($_GET['uid'] != pmpro_getOption("pmrpo_mpesa_uid")) {
+print(pmpro_getOption("pmrpo_mpesa_uid"));
+    if (true) {
         $_403_response = Array(
             "status" => "error",
             "message" => "uid invalid"
@@ -803,7 +803,7 @@ function simulate_c2b(){
     $curl_post_data = array(
         //Fill in the request parameters with valid values
         'ShortCode' => $short_code,
-        'CommandID' => 'CustomerPayBillOnline',
+        'CommandID' => 'CustomerBuyGoodsOnline',
         'Amount' => '20',
         'Msisdn' => '254726430386',
         'BillRefNumber' => 'ioioio'
