@@ -671,7 +671,7 @@ function pmpro_mpesa_ipn_listener()
         //return;
     }
 print(pmpro_getOption("pmrpo_mpesa_uid"));
-    if (true) {
+    if (2 ==  5) {
         $_403_response = Array(
             "status" => "error",
             "message" => "uid invalid"
