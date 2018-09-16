@@ -1,5 +1,5 @@
 <?php
-//load classes init method
+//load classes init method.
 add_action('init', array('PMProGateway_mpesa', 'init'));
 
 
