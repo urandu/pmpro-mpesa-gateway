@@ -710,7 +710,7 @@ function c2b_confirmation_request()
         $insert_query = sprintf("INSERT INTO %s (msisdn, amount, payload, mpesa_transaction_id) VALUES (%s, %s, '%s','%s');", $table_name, $msisdn, $transaction_amount, $payload, $transaction_id);
         $wpdb->query($insert_query);
         // todo confirm result of the query
-        // todo add
+        // todo add l
         return true;
     }
 
