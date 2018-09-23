@@ -802,8 +802,8 @@ function simulate_c2b(){
         'ShortCode' => $short_code,
         'CommandID' => 'CustomerPayBillOnline',
         'Amount' => '20',
-        'Msisdn' => '254726430386',
-        'BillRefNumber' => 'ioioio'
+        'Msisdn' => '2547264303767',
+        'BillRefNumber' => 'test'
     );
 
     $data_string = json_encode($curl_post_data);
