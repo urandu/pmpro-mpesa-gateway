@@ -1,7 +1,7 @@
 version: "2"
 services:
   my-wp:
-    image: wordpress_1
+    image: wordpress
     volumes:
       - ./:/var/www/html
     ports:
