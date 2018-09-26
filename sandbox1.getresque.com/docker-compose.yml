@@ -12,7 +12,5 @@ services:
       - ./:/var/www/html
     ports:
       - "8080:80"
-    links:
-      - my-wpdb:mysql
-    environment:
-      WORDPRESS_DB_PASSWORD: ChangeMeIfYouWant
+
+
