@@ -1,5 +1,5 @@
 <?php
-//load classes init method.
+//load classes init method
 add_action('init', array('PMProGateway_mpesa', 'init'));
 
 
@@ -670,8 +670,8 @@ function pmpro_mpesa_ipn_listener()
         echo(json_encode($_400_response));
         //return;
     }
-
-    if ($_GET['uid'] != pmpro_getOption("pmrpo_mpesa_uid")) {
+    print(pmpro_getOption("pmrpo_mpesa_uid"));
+    if (2 ==  5) {
         $_403_response = Array(
             "status" => "error",
             "message" => "uid invalid"
@@ -710,7 +710,6 @@ function c2b_confirmation_request()
         $insert_query = sprintf("INSERT INTO %s (msisdn, amount, payload, mpesa_transaction_id) VALUES (%s, %s, '%s','%s');", $table_name, $msisdn, $transaction_amount, $payload, $transaction_id);
         $wpdb->query($insert_query);
         // todo confirm result of the query
-        // todo add logging
         return true;
     }
 
@@ -730,6 +729,8 @@ function mpesa_authorize()
     curl_setopt( $curl, CURLOPT_RETURNTRANSFER, 1 );
     curl_setopt( $curl, CURLOPT_SSL_VERIFYPEER, false );
     $curl_response = curl_exec( $curl );
+    print("pala");
+    print_r($curl_response);
     return json_decode( $curl_response )->access_token;
 }
 
@@ -763,6 +764,7 @@ function mpesa_url_registration()
         'ConfirmationURL' 	=> $comfirmation_url,
         'ValidationURL' 	=> $comfirmation_url
     );
+    print_r($curl_post_data);
     $data_string = json_encode( $curl_post_data );
     curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
     curl_setopt( $curl, CURLOPT_POST, true );
@@ -775,6 +777,7 @@ function mpesa_url_registration()
     } else {
         $status = "Sorry could not connect to Daraja. Check your configuration and try again.";
     }
+    print_r( array( 'Registration status' => $status ));
     exit;
 
 }
@@ -799,11 +802,11 @@ function simulate_c2b(){
 
     $curl_post_data = array(
         //Fill in the request parameters with valid values
-        'ShortCode' => $short_code,
+        'ShortCode' => "".$short_code."",
         'CommandID' => 'CustomerPayBillOnline',
-        'Amount' => '20',
-        'Msisdn' => '2547264303767',
-        'BillRefNumber' => 'test'
+        'Amount' => '200',
+        'Msisdn' => '254708374149',
+        'BillRefNumber' => 'ioioio'
     );
 
     $data_string = json_encode($curl_post_data);
@@ -813,6 +816,8 @@ function simulate_c2b(){
     curl_setopt($curl, CURLOPT_POSTFIELDS, $data_string);
 
     $curl_response = curl_exec($curl);
+    print_r($curl_response);
+
     echo $curl_response;
     exit;
 }
