@@ -1,16 +1,14 @@
 version: "2"
 services:
-  database:
+  my-wpdb:
     image: mariadb
-    ports:
-    - 3306:3306
-    expose:
-    - 3306
     volumes:
     - ./docker/mariadb/data:/var/lib/mysql:rw
     - ./db_.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+    - "8081:3306"
     environment:
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_ROOT_PASSWORD: ChangeMeIfYouWant
   my-wp:
     image: wordpress
     volumes:
