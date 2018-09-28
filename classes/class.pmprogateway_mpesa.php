@@ -801,7 +801,7 @@ function simulate_c2b(){
     curl_setopt( $curl, CURLOPT_HTTPHEADER, array( 'Content-Type:application/json','Authorization:Bearer '.$token ) );
 
     $curl_post_data = array(
-        //Fill in the request parameters with valid values on
+        //Fill in the request parameters with valid values only
         'ShortCode' => "".$short_code."",
         'CommandID' => 'CustomerPayBillOnline',
         'Amount' => '200',
