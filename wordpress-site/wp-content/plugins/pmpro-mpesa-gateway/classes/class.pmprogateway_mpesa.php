@@ -802,7 +802,7 @@ function simulate_c2b(){
 
     $curl_post_data = array(
         //Fill in the request parameters with valid values
-        'ShortCode' => "".$short_code."",
+        'ShortCode' => $short_code,
         'CommandID' => 'CustomerPayBillOnline',
         'Amount' => '200',
         'Msisdn' => '254708374149',
