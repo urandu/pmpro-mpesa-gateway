@@ -684,6 +684,10 @@ function pmpro_mpesa_ipn_listener()
     // todo validate request is from mpesa using IP address
     // todo validate_payload
     c2b_confirmation_request();
+    echo("{
+	\"ResultDesc\":\"Validation Service request accepted succesfully\",
+	\"ResultCode\":\"0\"
+}");
     exit;
 }
 
@@ -762,7 +766,7 @@ function mpesa_url_registration()
         'ShortCode' 		=> $short_code,
         'ResponseType' 		=> 'Completed',
         'ConfirmationURL' 	=> $comfirmation_url,
-        'ValidationURL' 	=> $comfirmation_url
+        'ValidationURL' 	=> $comfirmation_url."&validation=1"
     );
     print_r($curl_post_data);
     $data_string = json_encode( $curl_post_data );
@@ -801,8 +805,8 @@ function simulate_c2b(){
     curl_setopt( $curl, CURLOPT_HTTPHEADER, array( 'Content-Type:application/json','Authorization:Bearer '.$token ) );
 
     $curl_post_data = array(
-        //Fill in the request parameters with valid values only
-        'ShortCode' => "".$short_code."",
+        //Fill in the request parameters with valid values
+        'ShortCode' => $short_code,
         'CommandID' => 'CustomerPayBillOnline',
         'Amount' => '200',
         'Msisdn' => '254708374149',

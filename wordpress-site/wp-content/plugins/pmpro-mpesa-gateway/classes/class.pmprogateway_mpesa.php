@@ -684,6 +684,10 @@ print(pmpro_getOption("pmrpo_mpesa_uid"));
     // todo validate request is from mpesa using IP address
     // todo validate_payload
     c2b_confirmation_request();
+    echo("{
+	\"ResultDesc\":\"Validation Service request accepted succesfully\",
+	\"ResultCode\":\"0\"
+}");
     exit;
 }
 
@@ -762,7 +766,7 @@ function mpesa_url_registration()
         'ShortCode' 		=> $short_code,
         'ResponseType' 		=> 'Completed',
         'ConfirmationURL' 	=> $comfirmation_url,
-        'ValidationURL' 	=> $comfirmation_url
+        'ValidationURL' 	=> $comfirmation_url."&validation=1"
     );
     print_r($curl_post_data);
     $data_string = json_encode( $curl_post_data );
