@@ -1,0 +1,10 @@
+version: "2"
+services:
+  my-wp:
+    image: wordpress
+    volumes:
+      - ./:/var/www/html
+    ports:
+      - "8080:80"
+
+
