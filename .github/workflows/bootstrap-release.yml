@@ -1,0 +1,88 @@
+name: Bootstrap First Release
+
+# Runs once when this PR is merged into main.
+# If no release tag exists yet it creates v1.0.0 automatically.
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    name: Create v1.0.0 if no release exists
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need full history to check tags
+
+      - name: Check whether a release tag already exists
+        id: check
+        run: |
+          if git tag --list 'v*' | grep -qE '^v[0-9]+'; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── Only proceed when this is truly the first release ──────────────────
+      - name: Set up PHP
+        if: steps.check.outputs.exists == 'false'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: phpunit:8.5
+
+      - name: Run tests
+        if: steps.check.outputs.exists == 'false'
+        run: phpunit --no-coverage --testdox
+
+      - name: Build plugin zip
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          PLUGIN_DIR="pmpro-mpesa-gateway"
+          ZIPFILE="pmpro-mpesa-gateway-1.0.0.zip"
+
+          mkdir -p "/tmp/${PLUGIN_DIR}"
+          rsync -av --exclude='.git' \
+                    --exclude='.github' \
+                    --exclude='wordpress-site' \
+                    --exclude='wordpress-site.sh' \
+                    --exclude='tests' \
+                    --exclude='phpunit.xml' \
+                    --exclude='composer.json' \
+                    --exclude='.phpunit.result.cache' \
+                    --exclude='.gitignore' \
+                    --exclude='docs' \
+                    . "/tmp/${PLUGIN_DIR}/"
+
+          cd /tmp
+          zip -r "${ZIPFILE}" "${PLUGIN_DIR}"
+          mv "${ZIPFILE}" "${{ github.workspace }}/"
+
+      - name: Create GitHub Release v1.0.0
+        if: steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: M-Pesa Gateway for Paid Memberships Pro v1.0.0
+          body: |
+            ## M-Pesa Gateway for Paid Memberships Pro v1.0.0
+
+            Initial release 🎉
+
+            ### Installation
+            1. Download `pmpro-mpesa-gateway-1.0.0.zip` below.
+            2. In your WordPress admin go to **Plugins → Add New → Upload Plugin**.
+            3. Upload the zip, install, and activate.
+            4. Go to **Memberships → Payment Settings**, select **M-Pesa (Daraja)**, and enter your [Daraja credentials](https://developer.safaricom.co.ke/).
+
+            ### Documentation & live demo page
+            👉 https://urandu.github.io/pmpro-mpesa-gateway
+          files: pmpro-mpesa-gateway-1.0.0.zip
+          draft: false
+          prerelease: false
