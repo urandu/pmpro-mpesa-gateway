@@ -1,12 +1,12 @@
 name: Bootstrap First Release
 
-# Runs once when this PR is merged into main.
+# Runs once when this PR is merged into master.
 # If no release tag exists yet it creates v1.0.0 automatically.
 
 on:
   push:
     branches:
-      - main
+      - master
 
 permissions:
   contents: write
