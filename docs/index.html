@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="M-Pesa Daraja STK Push gateway for Paid Memberships Pro. Accept M-Pesa payments on your WordPress membership site in minutes." />
+  <title>M-Pesa Gateway for Paid Memberships Pro</title>
+  <style>
+    :root {
+      --green:  #00a550;
+      --green-dark: #007d3c;
+      --green-light: #e6f7ee;
+      --text:   #1a1a2e;
+      --muted:  #555;
+      --border: #d0e8da;
+      --radius: 10px;
+      --shadow: 0 4px 24px rgba(0,165,80,.12);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--text); background: #f9fdfb; line-height: 1.65; }
+
+    /* ── Navigation ── */
+    nav { background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    nav .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+    .nav-brand { font-weight: 700; font-size: 1.05rem; color: var(--green-dark); text-decoration: none; display: flex; align-items: center; gap: .5rem; }
+    .nav-brand svg { width: 28px; height: 28px; }
+    .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: .9rem; font-weight: 500; transition: color .2s; }
+    .nav-links a:hover { color: var(--green); }
+
+    /* ── Hero ── */
+    .hero { background: linear-gradient(135deg, var(--green-dark) 0%, var(--green) 100%); color: #fff; padding: 5rem 1.5rem 4rem; text-align: center; }
+    .hero .badge { display: inline-block; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35); border-radius: 20px; padding: .25rem .9rem; font-size: .78rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1.2rem; }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.1rem; }
+    .hero p { font-size: 1.15rem; opacity: .9; max-width: 620px; margin: 0 auto 2rem; }
+    .hero-cta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; gap: .5rem; padding: .75rem 1.75rem; border-radius: var(--radius); font-size: 1rem; font-weight: 600; text-decoration: none; transition: transform .15s, box-shadow .15s; }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.15); }
+    .btn-primary { background: #fff; color: var(--green-dark); }
+    .btn-outline { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,.7); }
+
+    /* ── Section wrappers ── */
+    section { padding: 4rem 1.5rem; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .section-label { color: var(--green); font-size: .78rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; margin-bottom: .5rem; }
+    h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; margin-bottom: 1rem; }
+    p.lead { color: var(--muted); font-size: 1.05rem; max-width: 640px; }
+
+    /* ── Feature grid ── */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin-top: 2.5rem; }
+    .feature-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; box-shadow: var(--shadow); }
+    .feature-icon { font-size: 2rem; margin-bottom: .75rem; }
+    .feature-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: .4rem; }
+    .feature-card p { color: var(--muted); font-size: .9rem; }
+
+    /* ── Flow diagram ── */
+    .flow { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; box-shadow: var(--shadow); margin-top: 2.5rem; overflow-x: auto; }
+    .flow-steps { display: flex; align-items: flex-start; gap: 0; flex-wrap: nowrap; }
+    .flow-step { flex: 1; min-width: 160px; text-align: center; position: relative; }
+    .flow-step:not(:last-child)::after { content: '→'; position: absolute; right: -14px; top: 22px; font-size: 1.3rem; color: var(--green); font-weight: 700; }
+    .step-circle { width: 48px; height: 48px; border-radius: 50%; background: var(--green-light); border: 2px solid var(--green); display: flex; align-items: center; justify-content: center; margin: 0 auto .6rem; font-size: 1.3rem; }
+    .step-title { font-size: .85rem; font-weight: 700; margin-bottom: .25rem; }
+    .step-desc { font-size: .78rem; color: var(--muted); }
+
+    /* ── Settings table ── */
+    .settings-section { background: var(--green-light); border-radius: var(--radius); }
+    table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; background: #fff; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+    th { background: var(--green-dark); color: #fff; padding: .75rem 1rem; font-size: .85rem; text-align: left; }
+    td { padding: .7rem 1rem; border-top: 1px solid var(--border); font-size: .9rem; color: var(--muted); }
+    td:first-child { color: var(--text); font-weight: 600; font-family: 'SFMono-Regular', Consolas, monospace; font-size: .82rem; }
+
+    /* ── Code block ── */
+    .code-wrap { background: #1a1a2e; border-radius: var(--radius); margin-top: 1.5rem; overflow: hidden; }
+    .code-header { background: rgba(255,255,255,.06); padding: .5rem 1rem; font-size: .78rem; color: #8892b0; display: flex; align-items: center; gap: .5rem; }
+    .code-dot { width: 10px; height: 10px; border-radius: 50%; }
+    pre { padding: 1.25rem 1.5rem; font-size: .83rem; line-height: 1.7; color: #cdd6f4; overflow-x: auto; }
+    code { font-family: 'SFMono-Regular', Consolas, 'Courier New', monospace; }
+
+    /* ── Stat strip ── */
+    .stats { background: var(--green-dark); color: #fff; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1.5rem; }
+    .stat { text-align: center; }
+    .stat-number { font-size: 2.4rem; font-weight: 800; line-height: 1; }
+    .stat-label { font-size: .85rem; opacity: .8; margin-top: .3rem; }
+
+    /* ── Install steps ── */
+    .install-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+    .install-step { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); display: flex; gap: 1rem; align-items: flex-start; }
+    .step-num { width: 36px; height: 36px; background: var(--green); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: .95rem; }
+    .install-step h3 { font-size: .95rem; font-weight: 700; margin-bottom: .25rem; }
+    .install-step p { font-size: .85rem; color: var(--muted); }
+
+    /* ── CTA banner ── */
+    .cta-banner { background: linear-gradient(135deg, var(--green-dark), var(--green)); color: #fff; border-radius: var(--radius); padding: 3rem 2rem; text-align: center; }
+    .cta-banner h2 { color: #fff; margin-bottom: .75rem; }
+    .cta-banner p { opacity: .9; margin-bottom: 1.75rem; }
+
+    /* ── Footer ── */
+    footer { background: #fff; border-top: 1px solid var(--border); padding: 1.5rem; text-align: center; font-size: .85rem; color: var(--muted); }
+    footer a { color: var(--green-dark); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .flow-steps { flex-wrap: wrap; justify-content: center; }
+      .flow-step::after { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="#">
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#00a550"/>
+        <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#fff" font-size="18" font-weight="bold" font-family="sans-serif">₭</text>
+      </svg>
+      PMPro M-Pesa
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#setup">Setup</a></li>
+      <li><a href="#docs">Docs</a></li>
+      <li><a href="https://github.com/urandu/pmpro-mpesa-gateway">GitHub</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="badge">Daraja STK Push · v1.0</div>
+  <h1>M-Pesa Payments for<br>Paid Memberships Pro</h1>
+  <p>Accept M-Pesa on your WordPress membership site using Safaricom's Daraja API. Customers receive a PIN prompt directly on their phone — no manual payment steps required.</p>
+  <div class="hero-cta">
+    <a class="btn btn-primary" href="https://github.com/urandu/pmpro-mpesa-gateway/releases/latest">
+      ⬇ Download Latest Release
+    </a>
+    <a class="btn btn-outline" href="https://github.com/urandu/pmpro-mpesa-gateway">
+      View on GitHub
+    </a>
+  </div>
+</header>
+
+<!-- Stats strip -->
+<section class="stats">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-number">STK</div><div class="stat-label">Push-based checkout</div></div>
+      <div class="stat"><div class="stat-number">25</div><div class="stat-label">Automated tests</div></div>
+      <div class="stat"><div class="stat-number">0</div><div class="stat-label">SQL injection risks</div></div>
+      <div class="stat"><div class="stat-number">2</div><div class="stat-label">API environments (sandbox + live)</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <div class="container">
+    <div class="section-label">What's included</div>
+    <h2>Everything you need to go live</h2>
+    <p class="lead">Built to the latest Paid Memberships Pro gateway standard and the Daraja v1 API specification.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📲</div>
+        <h3>STK Push checkout</h3>
+        <p>Customers enter their phone number and approve the payment from an M-Pesa PIN prompt — no app switching or manual "pay to till" instructions.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔄</div>
+        <h3>Automatic status polling</h3>
+        <p><code>mpesa_stk_query()</code> checks the Daraja Query API when the async callback hasn't arrived yet, so checkout completes reliably on the second form submit.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>Secure callback URL</h3>
+        <p>Every Safaricom server-to-server call is validated against a site-specific secret UID using <code>hash_equals()</code>, preventing replay attacks.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>SQL-injection free</h3>
+        <p>All database operations use <code>wpdb->prepare()</code>, <code>wpdb->insert()</code>, and <code>wpdb->update()</code>. No raw string interpolation.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">♻️</div>
+        <h3>WordPress HTTP API</h3>
+        <p>Uses <code>wp_remote_get/post()</code> instead of raw cURL — respects WordPress proxy settings and integrates with existing HTTP filter hooks.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧪</div>
+        <h3>25 PHPUnit tests</h3>
+        <p>Ships with a complete test suite (no extra packages required). Covers phone normalisation, access token, STK push/query, callbacks, and the IPN listener.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How It Works -->
+<section id="how-it-works" style="background:#fff">
+  <div class="container">
+    <div class="section-label">Payment flow</div>
+    <h2>How the checkout works</h2>
+    <p class="lead">Two-click M-Pesa payment — no redirect, no manual steps.</p>
+
+    <div class="flow">
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="step-circle">📱</div>
+          <div class="step-title">Enter phone</div>
+          <div class="step-desc">Customer types their M-Pesa number &amp; clicks Submit</div>
+        </div>
+        <div class="flow-step">
+          <div class="step-circle">🚀</div>
+          <div class="step-title">STK Push sent</div>
+          <div class="step-desc">Plugin calls the Daraja API instantly</div>
+        </div>
+        <div class="flow-step">
+          <div class="step-circle">🔔</div>
+          <div class="step-title">PIN prompt</div>
+          <div class="step-desc">Customer sees the M-Pesa PIN popup on their phone</div>
+        </div>
+        <div class="flow-step">
+          <div class="step-circle">✅</div>
+          <div class="step-title">Callback received</div>
+          <div class="step-desc">Safaricom POSTs result; DB updated in real time</div>
+        </div>
+        <div class="flow-step">
+          <div class="step-circle">🎉</div>
+          <div class="step-title">Membership activated</div>
+          <div class="step-desc">Customer re-submits; order confirmed &amp; access granted</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Setup -->
+<section id="setup" class="settings-section">
+  <div class="container">
+    <div class="section-label">Quick start</div>
+    <h2>Set up in 4 steps</h2>
+    <div class="install-steps">
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div>
+          <h3>Download &amp; activate</h3>
+          <p>Download the latest release zip from GitHub, upload via WordPress Plugins → Add New → Upload.</p>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div>
+          <h3>Get Daraja credentials</h3>
+          <p>Log in to <a href="https://developer.safaricom.co.ke" target="_blank" rel="noopener">developer.safaricom.co.ke</a> and grab your Consumer Key, Consumer Secret, and Passkey.</p>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">3</div>
+        <div>
+          <h3>Configure the gateway</h3>
+          <p>Go to Memberships → Payment Settings, select M-Pesa (Daraja), and fill in your credentials.</p>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">4</div>
+        <div>
+          <h3>Register the callback URL</h3>
+          <p>Copy the Callback URL shown in the settings page and add it to your Daraja app configuration.</p>
+        </div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Setting</th>
+          <th>Where to find it</th>
+          <th>Required?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>mpesa_short_code</td><td>Your Safaricom paybill or till number</td><td>Yes</td></tr>
+        <tr><td>mpesa_consumer_key</td><td>Daraja developer portal → your app</td><td>Yes</td></tr>
+        <tr><td>mpesa_consumer_secret</td><td>Daraja developer portal → your app</td><td>Yes</td></tr>
+        <tr><td>mpesa_passkey</td><td>Daraja → Lipa Na M-Pesa Online passkey</td><td>Yes</td></tr>
+        <tr><td>gateway_environment</td><td>Set to <em>sandbox</em> for testing, <em>live</em> for production</td><td>Yes</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- API Docs -->
+<section id="docs">
+  <div class="container">
+    <div class="section-label">Developer reference</div>
+    <h2>API functions</h2>
+    <p class="lead">All public functions are available globally after the plugin is loaded.</p>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-dot" style="background:#ff5f57"></span>
+        <span class="code-dot" style="background:#febc2e"></span>
+        <span class="code-dot" style="background:#28c840"></span>
+        <span>PHP</span>
+      </div>
+      <pre><code><span style="color:#89dceb">// Get a Daraja OAuth 2.0 access token</span>
+$token = mpesa_get_access_token(); <span style="color:#6c7086">// string|false</span>
+
+<span style="color:#89dceb">// Initiate an STK Push</span>
+$result = mpesa_stk_push(
+    '254712345678',  <span style="color:#6c7086">// phone (international format)</span>
+    1500,            <span style="color:#6c7086">// amount (KES)</span>
+    'ORD-20240101',  <span style="color:#6c7086">// account reference (≤12 chars)</span>
+    'My Site'        <span style="color:#6c7086">// description (≤13 chars, optional)</span>
+);
+<span style="color:#89dceb">// $result->CheckoutRequestID — save this!</span>
+<span style="color:#89dceb">// $result->ResponseCode === '0' means push was accepted</span>
+
+<span style="color:#89dceb">// Query status of a pending push</span>
+$status = mpesa_stk_query( $result->CheckoutRequestID );
+<span style="color:#89dceb">// $status->ResultCode === '0' means payment confirmed</span>
+<span style="color:#89dceb">// $status->ResultCode === '1032' means user cancelled</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="background:#f9fdfb">
+  <div class="container">
+    <div class="cta-banner">
+      <h2>Ready to accept M-Pesa?</h2>
+      <p>Download the latest release and have M-Pesa running on your membership site in minutes.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="https://github.com/urandu/pmpro-mpesa-gateway/releases/latest">
+          ⬇ Download Latest Release
+        </a>
+        <a class="btn btn-outline" href="https://github.com/urandu/pmpro-mpesa-gateway/blob/main/README.md">
+          Read the Docs
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <p>
+    Built with ❤️ for the Kenyan WordPress community ·
+    <a href="https://github.com/urandu/pmpro-mpesa-gateway">GitHub</a> ·
+    <a href="https://github.com/urandu/pmpro-mpesa-gateway/issues">Report an issue</a> ·
+    GPL-2.0-or-later
+  </p>
+</footer>
+
+</body>
+</html>

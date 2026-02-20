@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ─── Run tests before publishing ──────────────────────────────────────────
+  test:
+    name: PHPUnit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: phpunit:8.5
+
+      - name: Run tests
+        run: phpunit --no-coverage --testdox
+
+  # ─── Build and publish the plugin zip ─────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse version from tag
+        id: vars
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build plugin zip
+        run: |
+          VERSION="${{ steps.vars.outputs.version }}"
+          PLUGIN_DIR="pmpro-mpesa-gateway"
+          ZIPFILE="pmpro-mpesa-gateway-${VERSION}.zip"
+
+          # Copy plugin files (exclude dev-only files)
+          mkdir -p "/tmp/${PLUGIN_DIR}"
+          rsync -av --exclude='.git' \
+                    --exclude='.github' \
+                    --exclude='wordpress-site' \
+                    --exclude='wordpress-site.sh' \
+                    --exclude='tests' \
+                    --exclude='phpunit.xml' \
+                    --exclude='composer.json' \
+                    --exclude='.phpunit.result.cache' \
+                    --exclude='.gitignore' \
+                    --exclude='docs' \
+                    . "/tmp/${PLUGIN_DIR}/"
+
+          cd /tmp
+          zip -r "${ZIPFILE}" "${PLUGIN_DIR}"
+          mv "${ZIPFILE}" "${{ github.workspace }}/"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: M-Pesa Gateway for Paid Memberships Pro ${{ github.ref_name }}
+          body: |
+            ## M-Pesa Gateway for Paid Memberships Pro ${{ github.ref_name }}
+
+            ### Installation
+            1. Download `pmpro-mpesa-gateway-${{ steps.vars.outputs.version }}.zip` below.
+            2. In your WordPress admin go to **Plugins → Add New → Upload Plugin**.
+            3. Upload the zip, install, and activate.
+            4. Go to **Memberships → Payment Settings**, select **M-Pesa (Daraja)**, and enter your [Daraja credentials](https://developer.safaricom.co.ke/).
+
+            ### What's changed
+            See [README.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/README.md) and [CHANGELOG](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/README.md#changelog) for details.
+
+            ### Documentation &amp; live demo page
+            👉 https://urandu.github.io/pmpro-mpesa-gateway
+          files: |
+            pmpro-mpesa-gateway-${{ steps.vars.outputs.version }}.zip
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
