@@ -1,0 +1,17 @@
+{
+    "name": "urandu/pmpro-mpesa-gateway",
+    "description": "M-Pesa Daraja STK Push gateway for Paid Memberships Pro",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require-dev": {
+        "phpunit/phpunit": "^8.5"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PMProMpesa\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    }
+}

@@ -1,3 +1,4 @@
 .idea/
 auto-commit.sh
 start-watcher.sh
+.phpunit.result.cache
