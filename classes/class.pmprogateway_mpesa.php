@@ -482,8 +482,8 @@ class PMProGateway_mpesa extends PMProGateway {
 		);
 
 		if ( $confirmed ) {
-			if ( (float) $confirmed->amount >= $amount ) {
-				// Full payment confirmed – link the transaction to this order.
+			if ( (float) $confirmed->amount >= $amount && ! empty( $confirmed->mpesa_transaction_id ) ) {
+				// Full payment confirmed with a valid M-Pesa receipt – link the transaction to this order.
 				$wpdb->update(
 					$table_name,
 					array( 'order_id' => $order->code ),
@@ -494,6 +494,14 @@ class PMProGateway_mpesa extends PMProGateway {
 				$order->payment_transaction_id = $confirmed->mpesa_transaction_id;
 				$order->updateStatus( 'success' );
 				return true;
+			}
+
+			if ( (float) $confirmed->amount >= $amount ) {
+				// Amount is sufficient but the receipt number is not yet recorded.
+				$order->error      = __( 'Payment received but M-Pesa receipt not yet available. Please try again in a moment.', 'paid-memberships-pro' );
+				$order->errorcode  = 'mpesa_receipt_pending';
+				$order->shorterror = __( 'M-Pesa receipt pending.', 'paid-memberships-pro' );
+				return false;
 			}
 
 			// Partial payment received.
@@ -513,18 +521,68 @@ class PMProGateway_mpesa extends PMProGateway {
 		}
 
 		// 2. Check for a pending (in-flight) STK Push in the last 5 minutes.
-		$pending = $wpdb->get_var(
+		$pending = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id FROM {$table_name} WHERE msisdn = %s AND order_id = '-1' AND result_code = -1 AND time > DATE_SUB(NOW(), INTERVAL 5 MINUTE) LIMIT 1",
+				"SELECT id, checkout_request_id FROM {$table_name} WHERE msisdn = %s AND order_id = '-1' AND result_code = -1 AND time > DATE_SUB(NOW(), INTERVAL 5 MINUTE) LIMIT 1",
 				$mpesa_msisdn
 			)
 		);
 
 		if ( $pending ) {
-			$order->error      = __( 'Payment request already sent. Please check your phone, enter your M-Pesa PIN, then click Submit again.', 'paid-memberships-pro' );
-			$order->errorcode  = 'mpesa_stk_pending';
-			$order->shorterror = __( 'Awaiting M-Pesa payment.', 'paid-memberships-pro' );
-			return false;
+			// Query Daraja directly in case the callback was missed.
+			if ( ! empty( $pending->checkout_request_id ) ) {
+				$status = mpesa_stk_query( $pending->checkout_request_id );
+
+				if ( $status && isset( $status->ResultCode ) ) {
+					if ( $status->ResultCode === '0' ) {
+						// Payment confirmed via status query – update the record and complete the order.
+						$wpdb->update(
+							$table_name,
+							array( 'result_code' => 0 ),
+							array( 'id' => $pending->id ),
+							array( '%d' ),
+							array( '%d' )
+						);
+						// Reload the now-confirmed row and complete the order.
+						$confirmed = $wpdb->get_row(
+							$wpdb->prepare(
+								"SELECT id, amount, mpesa_transaction_id FROM {$table_name} WHERE id = %d LIMIT 1",
+								$pending->id
+							)
+						);
+						if ( $confirmed && (float) $confirmed->amount >= $amount && ! empty( $confirmed->mpesa_transaction_id ) ) {
+							$wpdb->update(
+								$table_name,
+								array( 'order_id' => $order->code ),
+								array( 'id'       => $confirmed->id ),
+								array( '%s' ),
+								array( '%d' )
+							);
+							$order->payment_transaction_id = $confirmed->mpesa_transaction_id;
+							$order->updateStatus( 'success' );
+							return true;
+						}
+					} elseif ( in_array( $status->ResultCode, array( '1032', '1037', '17' ), true ) ) {
+						// User cancelled, timed out, or request expired – remove stale row and try again.
+						$wpdb->update(
+							$table_name,
+							array( 'result_code' => (int) $status->ResultCode ),
+							array( 'id' => $pending->id ),
+							array( '%d' ),
+							array( '%d' )
+						);
+						// Fall through to initiate a new STK Push.
+						$pending = null;
+					}
+				}
+			}
+
+			if ( $pending ) {
+				$order->error      = __( 'Payment request already sent. Please check your phone, enter your M-Pesa PIN, then click Submit again.', 'paid-memberships-pro' );
+				$order->errorcode  = 'mpesa_stk_pending';
+				$order->shorterror = __( 'Awaiting M-Pesa payment.', 'paid-memberships-pro' );
+				return false;
+			}
 		}
 
 		// 3. No payment found – initiate a new STK Push.
@@ -637,7 +695,7 @@ function pmpro_mpesa_ipn_listener() {
 
 	if ( empty( $request_uid ) || ! hash_equals( $stored_uid, $request_uid ) ) {
 		wp_send_json( array( 'ResultCode' => 1, 'ResultDesc' => 'Invalid UID' ), 403 );
-		exit;
+		return;
 	}
 
 	$raw  = file_get_contents( 'php://input' );
@@ -645,13 +703,12 @@ function pmpro_mpesa_ipn_listener() {
 
 	if ( empty( $data ) ) {
 		wp_send_json( array( 'ResultCode' => 1, 'ResultDesc' => 'Invalid payload' ), 400 );
-		exit;
+		return;
 	}
 
 	mpesa_process_stk_callback( $data, $raw );
 
 	wp_send_json( array( 'ResultCode' => 0, 'ResultDesc' => 'Success' ) );
-	exit;
 }
 
 /**
@@ -871,6 +928,61 @@ function mpesa_stk_push( $phone, $amount, $reference, $description = '' ) {
 	}
 
 	return $result;
+}
+
+/**
+ * Query the status of a Daraja STK Push request (Lipa Na M-Pesa Online Query).
+ *
+ * Use this to poll for payment confirmation when the async callback has not
+ * been received (e.g., network issues or callback delivery failure).
+ *
+ * ResultCode values:
+ *   '0'    – Transaction completed successfully.
+ *   '1032' – Request cancelled by the user.
+ *   '1037' – DS timeout / user did not respond.
+ *   '17'   – Request already in process, try again later.
+ *
+ * @param string $checkout_request_id The CheckoutRequestID returned by mpesa_stk_push().
+ * @return object|false Decoded Daraja API response, or false on connection failure.
+ */
+function mpesa_stk_query( $checkout_request_id ) {
+	$access_token = mpesa_get_access_token();
+	if ( ! $access_token ) {
+		return false;
+	}
+
+	$short_code  = pmpro_getOption( 'mpesa_short_code' );
+	$passkey     = pmpro_getOption( 'mpesa_passkey' );
+	$environment = pmpro_getOption( 'gateway_environment' );
+
+	$timestamp = gmdate( 'YmdHis' );
+	$password  = base64_encode( $short_code . $passkey . $timestamp );
+
+	$endpoint = ( $environment === 'live' )
+		? 'https://api.safaricom.co.ke/mpesa/stkpushquery/v1/query'
+		: 'https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query';
+
+	$response = wp_remote_post(
+		$endpoint,
+		array(
+			'headers' => array(
+				'Authorization' => 'Bearer ' . $access_token,
+				'Content-Type'  => 'application/json',
+			),
+			'body'    => wp_json_encode( array(
+				'BusinessShortCode' => $short_code,
+				'Password'          => $password,
+				'Timestamp'         => $timestamp,
+				'CheckoutRequestID' => $checkout_request_id,
+			) ),
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		return false;
+	}
+
+	return json_decode( wp_remote_retrieve_body( $response ) );
 }
 
 /**
