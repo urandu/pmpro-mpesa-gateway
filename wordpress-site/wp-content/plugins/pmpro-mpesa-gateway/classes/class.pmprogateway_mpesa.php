@@ -1,909 +1,971 @@
 <?php
-//load classes init method
-add_action('init', array('PMProGateway_mpesa', 'init'));
-
+// Load class on WP init.
+add_action( 'init', array( 'PMProGateway_mpesa', 'init' ) );
 
 global $mpesa_db_version;
-$mpesa_db_version = '1.0';
+$mpesa_db_version = '2.0';
 
 /**
- * PMProGateway_gatewayname Class
+ * PMProGateway_mpesa Class
  *
- * Handles mpesa integration.
- *
+ * Handles M-Pesa Daraja STK Push integration for Paid Memberships Pro.
  */
-class PMProGateway_mpesa extends PMProGateway
-{
-    function PMProGateway($gateway = NULL)
-    {
-        $this->gateway = $gateway;
-        return $this->gateway;
-    }
-
-    /**
-     * Run on WP init
-     *
-     * @since 1.8
-     */
-    static function init()
-    {
-        global $pmpro_currencies;
-        //make sure mpesa is a gateway option
-        add_filter('pmpro_gateways', array('PMProGateway_mpesa', 'pmpro_gateways'));
-
-        //add fields to payment settings
-        add_filter('pmpro_payment_options', array('PMProGateway_mpesa', 'pmpro_payment_options'));
-        add_filter('pmpro_payment_option_fields', array('PMProGateway_mpesa', 'pmpro_payment_option_fields'), 10, 2);
-
-        //add some fields to edit user page (Updates)
-        add_action('pmpro_after_membership_level_profile_fields', array('PMProGateway_mpesa', 'user_profile_fields'));
-        add_action('profile_update', array('PMProGateway_mpesa', 'user_profile_fields_save'));
-
-        //updates cron
-        add_action('pmpro_activation', array('PMProGateway_mpesa', 'pmpro_activation'));
-        add_action('pmpro_deactivation', array('PMProGateway_mpesa', 'pmpro_deactivation'));
-        add_action('pmpro_cron_mpesa_subscription_updates', array('PMProGateway_mpesa', 'pmpro_cron_mpesa_subscription_updates'));
-        add_action('init', 'pmpro_mpesa_ipn_listener');
-        add_action('init', 'mpesa_url_registration');
-        add_action('init', 'simulate_c2b');
-
-
-
-        //code to add at checkout if mpesa is the current gateway
-        $gateway = pmpro_getOption("gateway");
-        if ($gateway == "mpesa") {
-            add_action('pmpro_checkout_before_submit_button', array('PMProGateway_mpesa', 'pmpro_checkout_before_submit_button'));
-            add_action('pmpro_billing_before_submit_button', array('PMProGateway_mpesa', 'pmpro_checkout_before_submit_button'));
-            add_filter('pmpro_checkout_order', array('PMProGateway_mpesa', 'pmpro_checkout_order'));
-            add_action('wp_head', array('PMProGateway_mpesa', 'wp_head_hide_billing_fields'));
-            add_filter('pmpro_checkout_order', array('PMProGateway_mpesa', 'pmpro_checkout_order'));
-            add_filter('pmpro_billing_order', array('PMProGateway_mpesa', 'pmpro_checkout_order'));
-            add_filter('pmpro_required_billing_fields', array('PMProGateway_mpesa', 'pmpro_required_billing_fields'));
-            add_filter('pmpro_include_payment_information_fields', array('PMProGateway_mpesa', 'pmpro_include_payment_information_fields'));
-        }
-
-        $pmpro_currencies = array(
-            'USD' => __('US Dollars (&#36;)', 'paid-memberships-pro' ),
-            'EUR' => array(
-                'name' => __('Euros (&euro;)', 'paid-memberships-pro' ),
-                'symbol' => '&euro;',
-                'position' => apply_filters("pmpro_euro_position", pmpro_euro_position_from_locale())
-            ),
-            'GBP' => array(
-                'name' => __('Pounds Sterling (&pound;)', 'paid-memberships-pro' ),
-                'symbol' => '&pound;',
-                'position' => 'left'
-            ),
-            'ARS' => __('Argentine Peso (&#36;)', 'paid-memberships-pro' ),
-            'AUD' => __('Australian Dollars (&#36;)', 'paid-memberships-pro' ),
-            'BRL' => array(
-                'name' => __('Brazilian Real (R&#36;)', 'paid-memberships-pro' ),
-                'symbol' => 'R&#36;',
-                'position' => 'left'
-            ),
-            'CAD' => __('Canadian Dollars (&#36;)', 'paid-memberships-pro' ),
-            'CNY' => __('Chinese Yuan', 'paid-memberships-pro' ),
-            'CZK' => array(
-                'name' => __('Czech Koruna', 'paid-memberships-pro' ),
-                'decimals' => '0',
-                'thousands_separator' => '&nbsp;',
-                'decimal_separator' => ',',
-                'symbol' => '&nbsp;Kč',
-                'position' => 'right',
-            ),
-            'DKK' => __('Danish Krone', 'paid-memberships-pro' ),
-            'HKD' => __('Hong Kong Dollar (&#36;)', 'paid-memberships-pro' ),
-            'HUF' => __('Hungarian Forint', 'paid-memberships-pro' ),
-            'INR' => __('Indian Rupee', 'paid-memberships-pro' ),
-            'IDR' => __('Indonesia Rupiah', 'paid-memberships-pro' ),
-            'ILS' => __('Israeli Shekel', 'paid-memberships-pro' ),
-            'JPY' => array(
-                'name' => __('Japanese Yen (&yen;)', 'paid-memberships-pro' ),
-                'symbol' => '&yen;',
-                'position' => 'right',
-                'decimals' => 0,
-            ),
-            'KES' => __('Kenyan Shillings', 'paid-memberships-pro' ),
-            'MYR' => __('Malaysian Ringgits', 'paid-memberships-pro' ),
-            'MXN' => __('Mexican Peso (&#36;)', 'paid-memberships-pro' ),
-            'NGN' => __('Nigerian Naira (&#8358;)', 'paid-memberships-pro' ),
-            'NZD' => __('New Zealand Dollar (&#36;)', 'paid-memberships-pro' ),
-            'NOK' => __('Norwegian Krone', 'paid-memberships-pro' ),
-            'PHP' => __('Philippine Pesos', 'paid-memberships-pro' ),
-            'PLN' => __('Polish Zloty', 'paid-memberships-pro' ),
-            'RUB' => array(
-                'name' => __('Russian Ruble (&#8381;)', 'paid-memberships-pro'),
-                'symbol' => '&#8381;',
-                'position' => 'right'
-            ),
-            'SGD' => array(
-                'name' => __('Singapore Dollar (&#36;)', 'paid-memberships-pro' ),
-                'symbol' => '&#36;',
-                'position' => 'right'
-            ),
-            'ZAR' => array(
-                'name' => __('South African Rand (R)', 'paid-memberships-pro' ),
-                'symbol' => 'R ',
-                'position' => 'left'
-            ),
-            'KRW' => array(
-                'name' => __('South Korean Won', 'paid-memberships-pro' ),
-                'decimals' => 0,
-            ),
-            'SEK' => __('Swedish Krona', 'paid-memberships-pro' ),
-            'CHF' => __('Swiss Franc', 'paid-memberships-pro' ),
-            'TWD' => __('Taiwan New Dollars', 'paid-memberships-pro' ),
-            'THB' => __('Thai Baht', 'paid-memberships-pro' ),
-            'TRY' => __('Turkish Lira', 'paid-memberships-pro' ),
-            'VND' => array(
-                'name' => __('Vietnamese Dong', 'paid-memberships-pro' ),
-                'decimals' => 0,
-            ),
-        );
-
-        $pmpro_currencies = apply_filters("pmpro_currencies", $pmpro_currencies);
-
-
-    }
-
-
-    //css to hide the fields
-    function wp_head_hide_billing_fields()
-    {
-        global $post, $pmpro_pages;
-        if (empty($pmpro_pages) || (!is_page($pmpro_pages['checkout']) && !is_page($pmpro_pages['billing'])))
-            return;
-        ?>
-        <style>
-            #pmpro_billing_address_fields {
-                display: none;
-            }
-        </style>
-        <?php
-    }
-
-    /**
-     * Make sure mpesa is in the gateways list
-     *
-     * @since 1.8
-     */
-    static function pmpro_gateways($gateways)
-    {
-        if (empty($gateways['mpesa']))
-            $gateways['mpesa'] = __('mpesa', 'pmpro');
-
-        return $gateways;
-    }
-
-    /**
-     * Get a list of payment options that the mpesa gateway needs/supports.
-     *
-     * @since 1.8
-     */
-    static function getGatewayOptions()
-    {
-        $options = array(
-            'sslseal',
-            'nuclear_HTTPS',
-            'gateway_environment',
-            'currency',
-            'use_ssl',
-            'mpesa_secret_key',
-            'mpesa_api_key',
-            'mpesa_short_code',
-            'pmpro_mpesa_uid',
-            'tax_state',
-            'tax_rate',
-            'accepted_credit_cards'
-        );
-
-        return $options;
-    }
-
-    /**
-     * Set payment options for payment settings page.
-     *
-     * @since 1.8
-     */
-    static function pmpro_payment_options($options)
-    {
-        //get mpesa options
-        $mpesa_options = PMProGateway_mpesa::getGatewayOptions();
-
-        //merge with others.
-        $options = array_merge($mpesa_options, $options);
-
-        return $options;
-    }
-
-    /**
-     * Display fields for mpesa options.
-     *
-     * @since 1.8
-     */
-    static function pmpro_payment_option_fields($values, $gateway)
-    {
-        ?>
-        <tr class="pmpro_settings_divider gateway gateway_mpesa"
-            <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
-            <td colspan="2">
-                <?php _e('Mpesa Settings', 'paid-memberships-pro'); ?>
-            </td>
-        </tr>
-
-        <?php
-
-        $gateway_environment = pmpro_getOption("gateway_environment");
-
-        if($gateway_environment == "live"){
-
-            ?>
-
-            <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
-                <th scope="row" valign="top">
-                    <label for="rrr"><?php _e('Confirmation URL Registration Production', 'paid-memberships-pro'); ?>:</label>
-                </th>
-
-
-                <td>
-                    <?php
-                    if (pmpro_getOption("pmpro_mpesa_url_reg_status_production") != 1) {
-                        $message = "Not Registered: <a href=\"".home_url( '/?mpesa_url_registration=live')."\" target=\"_blank\">Click here to register confirmation URL</a>";
-                    }else{
-                        $message = "Confirmation URL Registered: <a href=\"".home_url( '/?mpesa_url_registration=live')."\" target=\"_blank\">Click here to register confirmation URL again</a>";
-
-                    }
-
-                    echo $message;
-
-                    ?>
-                </td>
-
-
-            </tr>
-            <?php
-
-        } else{
-            ?>
-            <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
-                <th scope="row" valign="top">
-                    <label for="rrr"><?php _e('Confirmation URL Registration Sandbox', 'paid-memberships-pro'); ?>:</label>
-                </th>
-
-
-                <td>
-                    <?php
-                    if (pmpro_getOption("pmpro_mpesa_url_reg_status_production") != 1) {
-                        $message = "Not Registered: <a href=\"".home_url( '/?mpesa_url_registration=sandbox')."\" target=\"_blank\">Click here to register confirmation URL</a>";
-                    }else{
-                        $message = "Confirmation URL Registered: <a href=\"".home_url( '/?mpesa_url_registration=sandbox')."\" target=\"_blank\">Click here to register confirmation URL again</a>";
-
-                    }
-
-                    echo $message;
-
-                    ?>
-                </td>
-
-
-            </tr>
-
-            <?php
-        }
-
-        ?>
-
-        <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
-            <th scope="row" valign="top">
-                <label for="mpesa_short_code"><?php _e('Short code (paybill/till number)', 'paid-memberships-pro'); ?>:</label>
-            </th>
-            <td>
-                <input type="text" id="mpesa_short_code" name="mpesa_short_code" size="60"
-                       value="<?php echo esc_attr($values['mpesa_short_code']) ?>"/>
-            </td>
-        </tr>
-        <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
-            <th scope="row" valign="top">
-                <label for="mpesa_secret_key"><?php _e('Secret key', 'paid-memberships-pro'); ?>:</label>
-            </th>
-            <td>
-                <input type="text" id="mpesa_secret_key" name="mpesa_secret_key" size="60"
-                       value="<?php echo esc_attr($values['mpesa_secret_key']) ?>"/>
-            </td>
-        </tr>
-        <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
-            <th scope="row" valign="top">
-                <label for="mpesa_api_key"><?php _e('API Key', 'paid-memberships-pro'); ?>:</label>
-            </th>
-            <td>
-                <input type="text" id="mpesa_api_key" name="mpesa_api_key" size="60"
-                       value="<?php echo esc_attr($values['mpesa_api_key']) ?>"/>
-            </td>
-        </tr>
-        <tr class="gateway gateway_mpesa" <?php if ($gateway != "mpesa") { ?>style="display: none;"<?php } ?>>
-            <th scope="row" valign="top">
-                <label for="pmpro_mpesa_uid"><?php _e('pmpro-mpesa-gateway secret uid', 'paid-memberships-pro'); ?></label>
-            </th>
-            <td>
-                <?php echo esc_attr($values['pmpro_mpesa_uid']); ?>
-                <input type="text" hidden id="pmpro_mpesa_uid" name="pmpro_mpesa_uid" size="60"
-                       value="<?php if (!empty($values['pmpro_mpesa_uid'])) {
-                           echo esc_attr($values['pmpro_mpesa_uid']);
-                       } else {
-                           echo wp_generate_uuid4();
-                       } ?>"/>
-            </td>
-        </tr>
-        <?php
-    }
-
-    /**
-     * Filtering orders at checkout.
-     *
-     * @since 1.8
-     */
-    static function pmpro_checkout_order($morder)
-    {
-        //load up values
-        if (isset($_REQUEST['msisdn']))
-            $mpesa_msisdn = sanitize_text_field($_REQUEST['msisdn']);
-        else
-            $mpesa_msisdn = "";
-
-        $morder->mpesa_msisdn = $mpesa_msisdn;
-
-        return $morder;
-    }
-
-    /**
-     * Filtering orders at checkout.
-     *
-     * @since 1.8
-     */
-    static function pmpro_checkout_before_submit_button($morder)
-    {
-
-        return $morder;
-    }
-
-    /**
-     * Code to run after checkout
-     *
-     * @since 1.8
-     */
-    static function pmpro_after_checkout($user_id, $morder)
-    {
-    }
-
-    /**
-     * Use our own payment fields at checkout. (Remove the name attributes.)
-     * @since 1.8
-     */
-    static function pmpro_include_payment_information_fields($include)
-    {
-        //global vars
-        global $pmpro_requirebilling, $msisdn, $pmpro_level, $pmpro_error_fields;
-
-        ?>
-        <div id="pmpro_payment_information_fields" class="pmpro_checkout"
-             <?php if (!$pmpro_requirebilling || apply_filters("pmpro_hide_payment_information_fields", false)) { ?>style="display: none;"<?php } ?>>
-            <h3>
-                <span class="pmpro_checkout-h3-name"><?php _e('Payment Information', 'paid-memberships-pro'); ?></span>
-                <?php
-
-                $amount = $pmpro_level->initial_payment;
-                if (!empty($pmpro_error_fields["partial_payment"])) {
-                    $total_amount_paid_by_msisdn = $pmpro_error_fields["partial_payment"];
-                    $balance_amount = $pmpro_error_fields["balance_amount"];
-                    unset($pmpro_error_fields["balance_amount"]);
-                    unset($pmpro_error_fields["partial_payment"]);
-                    $info_message = sprintf('Received KES %s, please pay KES %s to complete the payment.<br> 
-                    To pay, go to mpesa and pay %s to till number %s then press the submit button below'
-                        , $total_amount_paid_by_msisdn, $balance_amount, $balance_amount, "11111111");
-
-                } else {
-                    $info_message = sprintf('To pay, go to mpesa and pay %s to till number %s', $amount, "11111111");
-                }
-
-                ?>
-                <span class="pmpro_checkout-h3-name"><?php print(__($info_message)); ?></span>
-            </h3>
-            <?php $sslseal = pmpro_getOption("sslseal"); ?>
-            <?php if (!empty($sslseal)) { ?>
-            <div class="pmpro_checkout-fields-display-seal">
-                <?php } ?>
-                <div class="pmpro_checkout-fields">
-                    <div class="pmpro_checkout-field pmpro_payment-account-number">
-                        <label for="AccountNumber"><?php _e('Phone Number', 'paid-memberships-pro'); ?></label>
-                        <input id="AccountNumber" required name="msisdn"
-                               class="input <?php echo pmpro_getClassForField("msisdn"); ?>" type="text"
-                               size="25" value="<?php echo esc_attr($msisdn) ?>" data-encrypted-name="msisdn"
-                               autocomplete="off"/>
-                    </div>
-
-                </div> <!-- end pmpro_checkout-fields -->
-                <?php if (!empty($sslseal)) { ?>
-                <div class="pmpro_checkout-fields-rightcol pmpro_sslseal"><?php echo stripslashes($sslseal); ?></div>
-            </div> <!-- end pmpro_checkout-fields-display-seal -->
-        <?php } ?>
-        </div> <!-- end pmpro_payment_information_fields -->
-        <?php
-
-        //don't include the default
-        return false;
-    }
-
-    /**
-     * Don't require the CVV, but look for cvv (lowercase) that braintree sends
-     *
-     */
-    static function pmpro_required_billing_fields($fields)
-    {
-        $fields['msisdn'] = true;
-        unset($fields["bfirstname"]);
-        unset($fields["blastname"]);
-        unset($fields["baddress1"]);
-        unset($fields["bcity"]);
-        unset($fields["bstate"]);
-        unset($fields["bzipcode"]);
-        unset($fields["bphone"]);
-        unset($fields["bemail"]);
-        unset($fields["bcountry"]);
-        unset($fields["CardType"]);
-        unset($fields["AccountNumber"]);
-        unset($fields["ExpirationMonth"]);
-        unset($fields["ExpirationYear"]);
-        unset($fields["CVV"]);
-        return $fields;
-    }
-
-    /**
-     * Fields shown on edit user page
-     *
-     * @since 1.8
-     */
-    static function user_profile_fields($user)
-    {
-    }
-
-
-    /**
-     * Process fields from the edit user page
-     *
-     * @since 1.8
-     */
-    static function user_profile_fields_save($user_id)
-    {
-    }
-
-    /**
-     * Cron activation for subscription updates.
-     *
-     * @since 1.8
-     */
-    static function pmpro_activation()
-    {
-        wp_schedule_event(time(), 'daily', 'pmpro_cron_mpesa_subscription_updates');
-    }
-
-    /**
-     * Cron deactivation for subscription updates.
-     *
-     * @since 1.8
-     */
-    static function pmpro_deactivation()
-    {
-        wp_clear_scheduled_hook('pmpro_cron_mpesa_subscription_updates');
-    }
-
-    /**
-     * Cron job for subscription updates.
-     *
-     * @since 1.8
-     */
-    static function pmpro_cron_mpesa_subscription_updates()
-    {
-    }
-
-    /**
-     * Process checkout.
-     *
-     */
-    function process(&$order)
-    {
-        //check for initial payment
-        if (floatval($order->InitialPayment) == 0) {
-            //auth first, then process
-            if ($this->authorize($order)) {
-                if (!pmpro_isLevelTrial($order->membership_level)) {
-                    //subscription will start today with a 1 period trial
-                    $order->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
-                    $order->TrialBillingPeriod = $order->BillingPeriod;
-                    $order->TrialBillingFrequency = $order->BillingFrequency;
-                    $order->TrialBillingCycles = 1;
-                    $order->TrialAmount = 0;
-
-                    //add a billing cycle to make up for the trial, if applicable
-                    if (!empty($order->TotalBillingCycles))
-                        $order->TotalBillingCycles++;
-                } elseif ($order->InitialPayment == 0 && $order->TrialAmount == 0) {
-                    //it has a trial, but the amount is the same as the initial payment, so we can squeeze it in there
-                    $order->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
-                    $order->TrialBillingCycles++;
-
-                    //add a billing cycle to make up for the trial, if applicable
-                    if (!empty($order->TotalBillingCycles))
-                        $order->TotalBillingCycles++;
-                } else {
-                    //add a period to the start date to account for the initial payment
-                    $order->ProfileStartDate = date_i18n("Y-m-d", strtotime("+ " . $order->BillingFrequency . " " . $order->BillingPeriod, current_time("timestamp"))) . "T0:0:0";
-                }
-
-                $order->ProfileStartDate = apply_filters("pmpro_profile_start_date", $order->ProfileStartDate, $order);
-                return $this->subscribe($order);
-            } else {
-                if (empty($order->error))
-                    $order->error = __("Unknown error: Authorization failed.", 'paid-memberships-pro');
-                return false;
-            }
-        } else {
-            //charge first payment
-            if ($this->charge($order)) {
-                //set up recurring billing
-                if (pmpro_isLevelRecurring($order->membership_level)) {
-                    if (!pmpro_isLevelTrial($order->membership_level)) {
-                        //subscription will start today with a 1 period trial
-                        $order->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
-                        $order->TrialBillingPeriod = $order->BillingPeriod;
-                        $order->TrialBillingFrequency = $order->BillingFrequency;
-                        $order->TrialBillingCycles = 1;
-                        $order->TrialAmount = 0;
-
-                        //add a billing cycle to make up for the trial, if applicable
-                        if (!empty($order->TotalBillingCycles))
-                            $order->TotalBillingCycles++;
-                    } elseif ($order->InitialPayment == 0 && $order->TrialAmount == 0) {
-                        //it has a trial, but the amount is the same as the initial payment, so we can squeeze it in there
-                        $order->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
-                        $order->TrialBillingCycles++;
-
-                        //add a billing cycle to make up for the trial, if applicable
-                        if (!empty($order->TotalBillingCycles))
-                            $order->TotalBillingCycles++;
-                    } else {
-                        //add a period to the start date to account for the initial payment
-                        $order->ProfileStartDate = date_i18n("Y-m-d", strtotime("+ " . $order->BillingFrequency . " " . $order->BillingPeriod, current_time("timestamp"))) . "T0:0:0";
-                    }
-
-                    $order->ProfileStartDate = apply_filters("pmpro_profile_start_date", $order->ProfileStartDate, $order);
-                    if ($this->subscribe($order)) {
-                        return true;
-                    } else {
-                        if ($this->void($order)) {
-                            if (!$order->error)
-                                $order->error = __("Unknown error: Payment failed.", 'paid-memberships-pro');
-                        } else {
-                            if (!$order->error)
-                                $order->error = __("Unknown error: Payment failed.", 'paid-memberships-pro');
-                            $order->error .= " " . __("A partial payment was made that we could not void. Please contact the site owner immediately to correct this.", 'paid-memberships-pro');
-                        }
-
-                        return false;
-                    }
-                } else {
-                    //only a one time charge
-                    $order->status = "success";    //saved on checkout page
-                    return true;
-                }
-            } else {
-                if (empty($order->error))
-                    $order->error = __("Unknown error: Payment failed.", 'paid-memberships-pro');
-
-                return false;
-            }
-        }
-    }
-
-    function authorize(&$order)
-    {
-        // because the initial payment is 0 shillings, we shall always return true
-        if (empty($order->code))
-            $order->code = $order->getRandomCode();
-
-        //create a code for the order
-        if (empty($order->code))
-            $order->code = $order->getRandomCode();
-
-
-        //simulate a successful authorization
-        $order->payment_transaction_id = "mpesa_" . $order->code;
-        $order->updateStatus("authorized");
-        return true;
-
-    }
-
-    function charge(&$order)
-    {
-        if (empty($order->code))
-            $order->code = $order->getRandomCode();
-
-        //what amount to charge?
-        $amount = $order->InitialPayment;
-
-        //tax
-        $order->subtotal = $amount;
-        $tax = $order->getTax(true);
-        $amount = round((float)$order->subtotal + (float)$tax, 2);
-
-
-        //check db for transaction associated with phone_number
-        global $wpdb;
-
-        //to use account_number for paybills.
-        $mpesa_msisdn = $order->mpesa_msisdn;
-        $mpesa_msisdn = str_replace("07", "2547", $mpesa_msisdn);
-        $mpesa_msisdn = str_replace("+", "", $mpesa_msisdn);
-        $mpesa_msisdn = trim($mpesa_msisdn);
-        $table_name = $wpdb->prefix . 'pmpro_mpesa';
-        $total_amount_paid_by_msisdn = $wpdb->get_var("SELECT SUM(amount) AS total_amount FROM $table_name WHERE msisdn=$mpesa_msisdn AND order_id=-1;");
-
-        if ($total_amount_paid_by_msisdn >= $amount) {
-            //payment successful
-            //todo use-mpesa-transaction_id
-            $order->payment_transaction_id = "MPESA_" . $order->getRandomCode();;
-            $order->updateStatus("success");
-
-            // update mpesa transactions table
-            $wpdb->query($wpdb->prepare("UPDATE $table_name 
-                SET order_id = %s 
-             WHERE msisdn = %s AND order_id=-1", $order->code, $mpesa_msisdn)
-            );
-            return true;
-        } else {
-            // the amount is not fully paid return error to checkout page
-
-            if ($total_amount_paid_by_msisdn > 0) {
-                //partial payment
-                global $pmpro_error_fields;
-                $balance_amount = $amount - $total_amount_paid_by_msisdn;
-                $pmpro_error_fields["partial_payment"] = $total_amount_paid_by_msisdn;
-                $pmpro_error_fields["balance_amount"] = $balance_amount;
-                $message = sprintf("Received KES %s, please pay KES %s to complete the subscription.",
-                    $total_amount_paid_by_msisdn, $balance_amount);
-            } else {
-                //no money received
-                $message = sprintf("No payment has been received from the msisdn %s.", $mpesa_msisdn);
-            }
-
-            //$order->status = "error";
-            $order->errorcode = "transaction failed 1";
-            $order->error = $message;
-            $order->shorterror = "transaction failed 3";
-            return false;
-
-        }
-
-    }
-
-    function subscribe(&$order)
-    {
-        //create a code for the order
-        if (empty($order->code))
-            $order->code = $order->getRandomCode();
-
-        //filter order before subscription. use with care.
-        $order = apply_filters("pmpro_subscribe_order", $order, $this);
-
-        //code to setup a recurring subscription with the gateway and test results would go here
-
-        //simulate a successful subscription processing
-        $order->status = "success";
-        $order->subscription_transaction_id = "mpesa" . $order->code;
-        return true;
-    }
-
-
+class PMProGateway_mpesa extends PMProGateway {
+
+	/**
+	 * Constructor.
+	 *
+	 * @param string|null $gateway Gateway name.
+	 */
+	function __construct( $gateway = NULL ) {
+		$this->gateway = $gateway;
+		return $this->gateway;
+	}
+
+	/**
+	 * Run on WP init.
+	 */
+	static function init() {
+		// Make sure mpesa is a gateway option.
+		add_filter( 'pmpro_gateways', array( 'PMProGateway_mpesa', 'pmpro_gateways' ) );
+
+		// Add fields to payment settings page.
+		add_filter( 'pmpro_payment_options', array( 'PMProGateway_mpesa', 'pmpro_payment_options' ) );
+		add_filter( 'pmpro_payment_option_fields', array( 'PMProGateway_mpesa', 'pmpro_payment_option_fields' ), 10, 2 );
+
+		// Add some fields to edit user page.
+		add_action( 'pmpro_after_membership_level_profile_fields', array( 'PMProGateway_mpesa', 'user_profile_fields' ) );
+		add_action( 'profile_update', array( 'PMProGateway_mpesa', 'user_profile_fields_save' ) );
+
+		// Cron hooks.
+		add_action( 'pmpro_activation', array( 'PMProGateway_mpesa', 'pmpro_activation' ) );
+		add_action( 'pmpro_deactivation', array( 'PMProGateway_mpesa', 'pmpro_deactivation' ) );
+		add_action( 'pmpro_cron_mpesa_subscription_updates', array( 'PMProGateway_mpesa', 'pmpro_cron_mpesa_subscription_updates' ) );
+
+		// Checkout-specific hooks when mpesa is the active gateway.
+		$gateway = pmpro_getOption( 'gateway' );
+		if ( $gateway === 'mpesa' ) {
+			add_action( 'pmpro_checkout_before_submit_button', array( 'PMProGateway_mpesa', 'pmpro_checkout_before_submit_button' ) );
+			add_action( 'pmpro_billing_before_submit_button', array( 'PMProGateway_mpesa', 'pmpro_checkout_before_submit_button' ) );
+			add_filter( 'pmpro_checkout_order', array( 'PMProGateway_mpesa', 'pmpro_checkout_order' ) );
+			add_filter( 'pmpro_billing_order', array( 'PMProGateway_mpesa', 'pmpro_checkout_order' ) );
+			add_action( 'wp_head', array( 'PMProGateway_mpesa', 'wp_head_hide_billing_fields' ) );
+			add_filter( 'pmpro_required_billing_fields', array( 'PMProGateway_mpesa', 'pmpro_required_billing_fields' ) );
+			add_filter( 'pmpro_include_payment_information_fields', array( 'PMProGateway_mpesa', 'pmpro_include_payment_information_fields' ) );
+		}
+	}
+
+	/**
+	 * CSS to hide the billing address fields on checkout/billing pages.
+	 */
+	static function wp_head_hide_billing_fields() {
+		global $pmpro_pages;
+		if ( empty( $pmpro_pages ) || ( ! is_page( $pmpro_pages['checkout'] ) && ! is_page( $pmpro_pages['billing'] ) ) ) {
+			return;
+		}
+		?>
+		<style>
+			#pmpro_billing_address_fields { display: none; }
+		</style>
+		<?php
+	}
+
+	/**
+	 * Make sure mpesa is in the gateways list.
+	 *
+	 * @param array $gateways
+	 * @return array
+	 */
+	static function pmpro_gateways( $gateways ) {
+		if ( empty( $gateways['mpesa'] ) ) {
+			$gateways['mpesa'] = __( 'M-Pesa (Daraja)', 'pmpro' );
+		}
+		return $gateways;
+	}
+
+	/**
+	 * Get a list of payment options that the mpesa gateway needs/supports.
+	 *
+	 * @return array
+	 */
+	static function getGatewayOptions() {
+		return array(
+			'sslseal',
+			'nuclear_HTTPS',
+			'gateway_environment',
+			'currency',
+			'use_ssl',
+			'mpesa_consumer_key',
+			'mpesa_consumer_secret',
+			'mpesa_short_code',
+			'mpesa_passkey',
+			'pmpro_mpesa_uid',
+			'tax_state',
+			'tax_rate',
+		);
+	}
+
+	/**
+	 * Set payment options for payment settings page.
+	 *
+	 * @param array $options
+	 * @return array
+	 */
+	static function pmpro_payment_options( $options ) {
+		$mpesa_options = PMProGateway_mpesa::getGatewayOptions();
+		$options       = array_merge( $mpesa_options, $options );
+		return $options;
+	}
+
+	/**
+	 * Display fields for mpesa options on the payment settings page.
+	 *
+	 * @param array  $values  Current saved option values.
+	 * @param string $gateway Active gateway slug.
+	 */
+	static function pmpro_payment_option_fields( $values, $gateway ) {
+		$hidden = ( $gateway !== 'mpesa' ) ? ' style="display: none;"' : '';
+
+		// Generate / read the UID used to secure the callback URL.
+		$uid          = ! empty( $values['pmpro_mpesa_uid'] ) ? $values['pmpro_mpesa_uid'] : wp_generate_uuid4();
+		$callback_url = home_url( '/?pmpro_mpesa_ipn=1&uid=' . $uid );
+		?>
+		<tr class="pmpro_settings_divider gateway gateway_mpesa"<?php echo $hidden; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+			<td colspan="2">
+				<h3><?php esc_html_e( 'M-Pesa (Daraja) Settings', 'paid-memberships-pro' ); ?></h3>
+			</td>
+		</tr>
+
+		<tr class="gateway gateway_mpesa"<?php echo $hidden; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+			<th scope="row" valign="top">
+				<label for="mpesa_short_code"><?php esc_html_e( 'Business Short Code', 'paid-memberships-pro' ); ?>:</label>
+			</th>
+			<td>
+				<input type="text" id="mpesa_short_code" name="mpesa_short_code" size="60"
+					value="<?php echo esc_attr( $values['mpesa_short_code'] ); ?>"/>
+				<p class="description"><?php esc_html_e( 'Your M-Pesa paybill or till number.', 'paid-memberships-pro' ); ?></p>
+			</td>
+		</tr>
+
+		<tr class="gateway gateway_mpesa"<?php echo $hidden; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+			<th scope="row" valign="top">
+				<label for="mpesa_consumer_key"><?php esc_html_e( 'Consumer Key', 'paid-memberships-pro' ); ?>:</label>
+			</th>
+			<td>
+				<input type="text" id="mpesa_consumer_key" name="mpesa_consumer_key" size="60"
+					value="<?php echo esc_attr( $values['mpesa_consumer_key'] ); ?>"/>
+				<p class="description"><?php esc_html_e( 'Daraja API consumer key from the Safaricom developer portal.', 'paid-memberships-pro' ); ?></p>
+			</td>
+		</tr>
+
+		<tr class="gateway gateway_mpesa"<?php echo $hidden; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+			<th scope="row" valign="top">
+				<label for="mpesa_consumer_secret"><?php esc_html_e( 'Consumer Secret', 'paid-memberships-pro' ); ?>:</label>
+			</th>
+			<td>
+				<input type="password" id="mpesa_consumer_secret" name="mpesa_consumer_secret" size="60"
+					value="<?php echo esc_attr( $values['mpesa_consumer_secret'] ); ?>"/>
+				<p class="description"><?php esc_html_e( 'Daraja API consumer secret from the Safaricom developer portal.', 'paid-memberships-pro' ); ?></p>
+			</td>
+		</tr>
+
+		<tr class="gateway gateway_mpesa"<?php echo $hidden; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+			<th scope="row" valign="top">
+				<label for="mpesa_passkey"><?php esc_html_e( 'Lipa Na M-Pesa Passkey', 'paid-memberships-pro' ); ?>:</label>
+			</th>
+			<td>
+				<input type="password" id="mpesa_passkey" name="mpesa_passkey" size="60"
+					value="<?php echo esc_attr( $values['mpesa_passkey'] ); ?>"/>
+				<p class="description"><?php esc_html_e( 'Online passkey from the Safaricom developer portal (used to generate the STK Push password).', 'paid-memberships-pro' ); ?></p>
+			</td>
+		</tr>
+
+		<tr class="gateway gateway_mpesa"<?php echo $hidden; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+			<th scope="row" valign="top">
+				<label><?php esc_html_e( 'STK Push Callback URL', 'paid-memberships-pro' ); ?></label>
+			</th>
+			<td>
+				<input type="hidden" id="pmpro_mpesa_uid" name="pmpro_mpesa_uid"
+					value="<?php echo esc_attr( $uid ); ?>"/>
+				<code><?php echo esc_url( $callback_url ); ?></code>
+				<p class="description"><?php esc_html_e( 'Add this URL as the callback URL in your Daraja app configuration.', 'paid-memberships-pro' ); ?></p>
+			</td>
+		</tr>
+		<?php
+	}
+
+	/**
+	 * Copy msisdn from POST into the order object.
+	 *
+	 * @param object $morder
+	 * @return object
+	 */
+	static function pmpro_checkout_order( $morder ) {
+		$morder->mpesa_msisdn = isset( $_REQUEST['msisdn'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['msisdn'] ) ) : '';
+		return $morder;
+	}
+
+	/**
+	 * Hook before submit button.
+	 *
+	 * @param object $morder
+	 * @return object
+	 */
+	static function pmpro_checkout_before_submit_button( $morder ) {
+		return $morder;
+	}
+
+	/**
+	 * Code to run after checkout.
+	 *
+	 * @param int    $user_id
+	 * @param object $morder
+	 */
+	static function pmpro_after_checkout( $user_id, $morder ) {
+	}
+
+	/**
+	 * Render payment information fields at checkout (phone number input + instructions).
+	 *
+	 * @param bool $include
+	 * @return false
+	 */
+	static function pmpro_include_payment_information_fields( $include ) {
+		global $pmpro_requirebilling, $msisdn, $pmpro_level, $pmpro_error_fields;
+
+		$short_code = pmpro_getOption( 'mpesa_short_code' );
+		$amount     = isset( $pmpro_level->initial_payment ) ? $pmpro_level->initial_payment : 0;
+
+		if ( ! empty( $pmpro_error_fields['partial_payment'] ) ) {
+			$total_paid = $pmpro_error_fields['partial_payment'];
+			$balance    = isset( $pmpro_error_fields['balance_amount'] ) ? $pmpro_error_fields['balance_amount'] : ( $amount - $total_paid );
+			unset( $pmpro_error_fields['balance_amount'], $pmpro_error_fields['partial_payment'] );
+			/* translators: 1: amount already received  2: outstanding balance */
+			$info_message = sprintf(
+				esc_html__( 'Received KES %1$s. Please complete the remaining KES %2$s via M-Pesa prompt on your phone.', 'paid-memberships-pro' ),
+				esc_html( $total_paid ),
+				esc_html( $balance )
+			);
+		} else {
+			/* translators: 1: amount to pay  2: business short code */
+			$info_message = sprintf(
+				esc_html__( 'You will receive an M-Pesa prompt on your phone to pay KES %1$s to %2$s. Enter your M-Pesa PIN to complete payment, then click Submit again.', 'paid-memberships-pro' ),
+				esc_html( $amount ),
+				esc_html( $short_code )
+			);
+		}
+		?>
+		<div id="pmpro_payment_information_fields" class="pmpro_checkout"
+			<?php if ( ! $pmpro_requirebilling || apply_filters( 'pmpro_hide_payment_information_fields', false ) ) { ?>style="display: none;"<?php } ?>>
+			<h3>
+				<span class="pmpro_checkout-h3-name"><?php esc_html_e( 'Payment Information', 'paid-memberships-pro' ); ?></span>
+			</h3>
+			<p class="pmpro_message"><?php echo wp_kses_post( $info_message ); ?></p>
+			<?php $sslseal = pmpro_getOption( 'sslseal' ); ?>
+			<?php if ( ! empty( $sslseal ) ) { ?>
+			<div class="pmpro_checkout-fields-display-seal">
+			<?php } ?>
+				<div class="pmpro_checkout-fields">
+					<div class="pmpro_checkout-field pmpro_payment-account-number">
+						<label for="msisdn"><?php esc_html_e( 'M-Pesa Phone Number', 'paid-memberships-pro' ); ?></label>
+						<input id="msisdn" name="msisdn" required
+							class="input <?php echo esc_attr( pmpro_getClassForField( 'msisdn' ) ); ?>"
+							type="tel" size="25"
+							value="<?php echo esc_attr( $msisdn ); ?>"
+							placeholder="e.g. 0712345678"
+							autocomplete="tel"/>
+					</div>
+				</div>
+			<?php if ( ! empty( $sslseal ) ) { ?>
+				<div class="pmpro_checkout-fields-rightcol pmpro_sslseal"><?php echo wp_kses_post( stripslashes( $sslseal ) ); ?></div>
+			</div>
+			<?php } ?>
+		</div>
+		<?php
+		// Do not include the default payment fields.
+		return false;
+	}
+
+	/**
+	 * Set required billing fields for M-Pesa (only the phone number).
+	 *
+	 * @param array $fields
+	 * @return array
+	 */
+	static function pmpro_required_billing_fields( $fields ) {
+		$fields['msisdn'] = true;
+		unset(
+			$fields['bfirstname'],
+			$fields['blastname'],
+			$fields['baddress1'],
+			$fields['bcity'],
+			$fields['bstate'],
+			$fields['bzipcode'],
+			$fields['bphone'],
+			$fields['bemail'],
+			$fields['bcountry'],
+			$fields['CardType'],
+			$fields['AccountNumber'],
+			$fields['ExpirationMonth'],
+			$fields['ExpirationYear'],
+			$fields['CVV']
+		);
+		return $fields;
+	}
+
+	/**
+	 * Fields shown on edit user page.
+	 *
+	 * @param WP_User $user
+	 */
+	static function user_profile_fields( $user ) {
+	}
+
+	/**
+	 * Process fields from the edit user page.
+	 *
+	 * @param int $user_id
+	 */
+	static function user_profile_fields_save( $user_id ) {
+	}
+
+	/**
+	 * Cron activation for subscription updates.
+	 */
+	static function pmpro_activation() {
+		wp_schedule_event( time(), 'daily', 'pmpro_cron_mpesa_subscription_updates' );
+	}
+
+	/**
+	 * Cron deactivation for subscription updates.
+	 */
+	static function pmpro_deactivation() {
+		wp_clear_scheduled_hook( 'pmpro_cron_mpesa_subscription_updates' );
+	}
+
+	/**
+	 * Cron job for subscription updates.
+	 */
+	static function pmpro_cron_mpesa_subscription_updates() {
+	}
+
+	/**
+	 * Process checkout – handles zero-payment authorisation and charged orders.
+	 *
+	 * @param object $order
+	 * @return bool
+	 */
+	function process( &$order ) {
+		if ( floatval( $order->InitialPayment ) == 0 ) {
+			if ( $this->authorize( $order ) ) {
+				if ( ! pmpro_isLevelTrial( $order->membership_level ) ) {
+					$order->ProfileStartDate      = date_i18n( 'Y-m-d' ) . 'T0:0:0';
+					$order->TrialBillingPeriod    = $order->BillingPeriod;
+					$order->TrialBillingFrequency = $order->BillingFrequency;
+					$order->TrialBillingCycles    = 1;
+					$order->TrialAmount           = 0;
+					if ( ! empty( $order->TotalBillingCycles ) ) {
+						$order->TotalBillingCycles++;
+					}
+				} elseif ( $order->InitialPayment == 0 && $order->TrialAmount == 0 ) {
+					$order->ProfileStartDate = date_i18n( 'Y-m-d' ) . 'T0:0:0';
+					$order->TrialBillingCycles++;
+					if ( ! empty( $order->TotalBillingCycles ) ) {
+						$order->TotalBillingCycles++;
+					}
+				} else {
+					$order->ProfileStartDate = date_i18n( 'Y-m-d', strtotime( '+ ' . $order->BillingFrequency . ' ' . $order->BillingPeriod, current_time( 'timestamp' ) ) ) . 'T0:0:0';
+				}
+				$order->ProfileStartDate = apply_filters( 'pmpro_profile_start_date', $order->ProfileStartDate, $order );
+				return $this->subscribe( $order );
+			} else {
+				if ( empty( $order->error ) ) {
+					$order->error = __( 'Unknown error: Authorization failed.', 'paid-memberships-pro' );
+				}
+				return false;
+			}
+		} else {
+			if ( $this->charge( $order ) ) {
+				if ( pmpro_isLevelRecurring( $order->membership_level ) ) {
+					if ( ! pmpro_isLevelTrial( $order->membership_level ) ) {
+						$order->ProfileStartDate      = date_i18n( 'Y-m-d' ) . 'T0:0:0';
+						$order->TrialBillingPeriod    = $order->BillingPeriod;
+						$order->TrialBillingFrequency = $order->BillingFrequency;
+						$order->TrialBillingCycles    = 1;
+						$order->TrialAmount           = 0;
+						if ( ! empty( $order->TotalBillingCycles ) ) {
+							$order->TotalBillingCycles++;
+						}
+					} elseif ( $order->InitialPayment == 0 && $order->TrialAmount == 0 ) {
+						$order->ProfileStartDate = date_i18n( 'Y-m-d' ) . 'T0:0:0';
+						$order->TrialBillingCycles++;
+						if ( ! empty( $order->TotalBillingCycles ) ) {
+							$order->TotalBillingCycles++;
+						}
+					} else {
+						$order->ProfileStartDate = date_i18n( 'Y-m-d', strtotime( '+ ' . $order->BillingFrequency . ' ' . $order->BillingPeriod, current_time( 'timestamp' ) ) ) . 'T0:0:0';
+					}
+					$order->ProfileStartDate = apply_filters( 'pmpro_profile_start_date', $order->ProfileStartDate, $order );
+					if ( $this->subscribe( $order ) ) {
+						return true;
+					} else {
+						if ( $this->void( $order ) ) {
+							if ( ! $order->error ) {
+								$order->error = __( 'Unknown error: Payment failed.', 'paid-memberships-pro' );
+							}
+						} else {
+							if ( ! $order->error ) {
+								$order->error = __( 'Unknown error: Payment failed.', 'paid-memberships-pro' );
+							}
+							$order->error .= ' ' . __( 'A partial payment was made that we could not void. Please contact the site owner immediately to correct this.', 'paid-memberships-pro' );
+						}
+						return false;
+					}
+				} else {
+					$order->status = 'success';
+					return true;
+				}
+			} else {
+				if ( empty( $order->error ) ) {
+					$order->error = __( 'Unknown error: Payment failed.', 'paid-memberships-pro' );
+				}
+				return false;
+			}
+		}
+	}
+
+	/**
+	 * Authorize – used when the initial payment is zero.
+	 *
+	 * @param object $order
+	 * @return bool
+	 */
+	function authorize( &$order ) {
+		if ( empty( $order->code ) ) {
+			$order->code = $order->getRandomCode();
+		}
+		$order->payment_transaction_id = 'mpesa_' . $order->code;
+		$order->updateStatus( 'authorized' );
+		return true;
+	}
+
+	/**
+	 * Charge via Daraja STK Push (Lipa Na M-Pesa Online).
+	 *
+	 * Flow:
+	 *   1. Check for a recently confirmed STK Push for this MSISDN → complete order.
+	 *   2. Check for a pending (in-flight) push → ask user to wait.
+	 *   3. Otherwise initiate a new STK Push → ask user to check their phone.
+	 *
+	 * @param object $order
+	 * @return bool
+	 */
+	function charge( &$order ) {
+		if ( empty( $order->code ) ) {
+			$order->code = $order->getRandomCode();
+		}
+
+		$order->subtotal = $order->InitialPayment;
+		$tax             = $order->getTax( true );
+		$amount          = round( (float) $order->subtotal + (float) $tax, 2 );
+
+		global $wpdb;
+		$table_name  = $wpdb->prefix . 'pmpro_mpesa';
+		$mpesa_msisdn = $this->normalize_phone( $order->mpesa_msisdn );
+
+		// 1. Check if there is already a confirmed (result_code = 0) payment for this number.
+		$confirmed = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT id, amount, mpesa_transaction_id FROM {$table_name} WHERE msisdn = %s AND order_id = '-1' AND result_code = 0 ORDER BY time DESC LIMIT 1",
+				$mpesa_msisdn
+			)
+		);
+
+		if ( $confirmed ) {
+			if ( (float) $confirmed->amount >= $amount ) {
+				// Full payment confirmed – link the transaction to this order.
+				$wpdb->update(
+					$table_name,
+					array( 'order_id' => $order->code ),
+					array( 'id'       => $confirmed->id ),
+					array( '%s' ),
+					array( '%d' )
+				);
+				$order->payment_transaction_id = $confirmed->mpesa_transaction_id;
+				$order->updateStatus( 'success' );
+				return true;
+			}
+
+			// Partial payment received.
+			global $pmpro_error_fields;
+			$balance = $amount - (float) $confirmed->amount;
+			$pmpro_error_fields['partial_payment'] = $confirmed->amount;
+			$pmpro_error_fields['balance_amount']  = $balance;
+			$order->error      = sprintf(
+				/* translators: 1: amount received  2: outstanding balance */
+				__( 'Received KES %1$s. Please complete the remaining KES %2$s via M-Pesa prompt.', 'paid-memberships-pro' ),
+				$confirmed->amount,
+				$balance
+			);
+			$order->errorcode  = 'mpesa_partial_payment';
+			$order->shorterror = __( 'Partial payment received.', 'paid-memberships-pro' );
+			return false;
+		}
+
+		// 2. Check for a pending (in-flight) STK Push in the last 5 minutes.
+		$pending = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$table_name} WHERE msisdn = %s AND order_id = '-1' AND result_code = -1 AND time > DATE_SUB(NOW(), INTERVAL 5 MINUTE) LIMIT 1",
+				$mpesa_msisdn
+			)
+		);
+
+		if ( $pending ) {
+			$order->error      = __( 'Payment request already sent. Please check your phone, enter your M-Pesa PIN, then click Submit again.', 'paid-memberships-pro' );
+			$order->errorcode  = 'mpesa_stk_pending';
+			$order->shorterror = __( 'Awaiting M-Pesa payment.', 'paid-memberships-pro' );
+			return false;
+		}
+
+		// 3. No payment found – initiate a new STK Push.
+		$result = mpesa_stk_push( $mpesa_msisdn, $amount, $order->code, get_bloginfo( 'name' ) );
+
+		if ( ! $result ) {
+			$order->error      = __( 'Could not connect to M-Pesa. Please try again.', 'paid-memberships-pro' );
+			$order->errorcode  = 'mpesa_connect_error';
+			$order->shorterror = __( 'M-Pesa connection error.', 'paid-memberships-pro' );
+			return false;
+		}
+
+		if ( isset( $result->errorCode ) ) {
+			$order->error      = isset( $result->errorMessage ) ? $result->errorMessage : __( 'M-Pesa error. Please try again.', 'paid-memberships-pro' );
+			$order->errorcode  = 'mpesa_api_error';
+			$order->shorterror = __( 'M-Pesa API error.', 'paid-memberships-pro' );
+			return false;
+		}
+
+		if ( isset( $result->ResponseCode ) && $result->ResponseCode === '0' ) {
+			// STK Push sent – prompt user to check their phone.
+			$order->error      = __( 'Please check your phone and enter your M-Pesa PIN to complete payment, then click Submit again.', 'paid-memberships-pro' );
+			$order->errorcode  = 'mpesa_stk_sent';
+			$order->shorterror = __( 'Awaiting M-Pesa payment.', 'paid-memberships-pro' );
+			return false;
+		}
+
+		$order->error      = isset( $result->ResponseDescription )
+			? $result->ResponseDescription
+			: __( 'M-Pesa payment failed. Please try again.', 'paid-memberships-pro' );
+		$order->errorcode  = 'mpesa_stk_failed';
+		$order->shorterror = __( 'M-Pesa payment failed.', 'paid-memberships-pro' );
+		return false;
+	}
+
+	/**
+	 * Set up a recurring subscription.
+	 *
+	 * @param object $order
+	 * @return bool
+	 */
+	function subscribe( &$order ) {
+		if ( empty( $order->code ) ) {
+			$order->code = $order->getRandomCode();
+		}
+		$order = apply_filters( 'pmpro_subscribe_order', $order, $this );
+		$order->status                      = 'success';
+		$order->subscription_transaction_id = 'mpesa_' . $order->code;
+		return true;
+	}
+
+	/**
+	 * Normalize a Kenyan phone number to international format (254XXXXXXXXX).
+	 *
+	 * @param string $phone
+	 * @return string
+	 */
+	private function normalize_phone( $phone ) {
+		$phone = trim( str_replace( array( ' ', '-', '+' ), '', $phone ) );
+		if ( substr( $phone, 0, 1 ) === '0' ) {
+			$phone = '254' . substr( $phone, 1 );
+		}
+		return $phone;
+	}
 }
 
 
-function mpesa_install()
-{
-    global $wpdb;
-    global $mpesa_db_version;
+// ─── Standalone plugin functions ──────────────────────────────────────────────
 
-    $table_name = $wpdb->prefix . 'pmpro_mpesa';
+/**
+ * Create or upgrade the M-Pesa transactions database table.
+ */
+function mpesa_install() {
+	global $wpdb, $mpesa_db_version;
 
-    $charset_collate = $wpdb->get_charset_collate();
+	$table_name      = $wpdb->prefix . 'pmpro_mpesa';
+	$charset_collate = $wpdb->get_charset_collate();
 
-    $sql = "CREATE TABLE $table_name (
+	$sql = "CREATE TABLE {$table_name} (
 		id bigint PRIMARY KEY NOT NULL AUTO_INCREMENT,
-        msisdn varchar(20) NOT NULL,
-        time datetime DEFAULT CURRENT_TIMESTAMP,
-        user_id varchar(255),
-        amount float NOT NULL,
-        order_id varchar(255) NOT NULL DEFAULT -1,
-        payload longtext,
-        mpesa_transaction_id varchar(50)
-	  ) $charset_collate;";
+		msisdn varchar(20) NOT NULL,
+		time datetime DEFAULT CURRENT_TIMESTAMP,
+		user_id varchar(255),
+		amount float NOT NULL DEFAULT 0,
+		order_id varchar(255) NOT NULL DEFAULT '-1',
+		payload longtext,
+		mpesa_transaction_id varchar(50),
+		checkout_request_id varchar(100),
+		result_code int NOT NULL DEFAULT -1
+	) {$charset_collate};";
 
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($sql);
+	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+	dbDelta( $sql );
 
-    add_option('mpesa_db_version', $mpesa_db_version);
-}
-
-function pmpro_mpesa_ipn_listener()
-{
-    // check for your custom query var
-    if (!isset($_GET['pmpro_mpesa_ipn'])) {
-        // if query var is not present just return
-
-        return;
-
-    }
-
-    if (!isset($_GET['uid'])) {
-
-        $_400_response = Array(
-            "status" => "error",
-            "message" => "uid not set"
-        );
-
-        echo(json_encode($_400_response));
-        //return;
-    }
-print(pmpro_getOption("pmrpo_mpesa_uid"));
-    if (2 ==  5) {
-        $_403_response = Array(
-            "status" => "error",
-            "message" => "uid invalid"
-        );
-
-        echo(json_encode($_403_response));
-        //return;
-    }
-
-    // todo validate request is from mpesa using IP address
-    // todo validate_payload
-    c2b_confirmation_request();
-    echo("{
-	\"ResultDesc\":\"Validation Service request accepted succesfully\",
-	\"ResultCode\":\"0\"
-}");
-    exit;
-}
-
-
-function c2b_confirmation_request()
-{
-    $callbackJSONData = file_get_contents('php://input');
-    $callbackData = json_decode($callbackJSONData);
-    $transaction_id = $callbackData->TransID;
-    $transaction_amount = $callbackData->TransAmount;
-    $msisdn = $callbackData->MSISDN;
-
-    $payload = $callbackJSONData;
-    global $wpdb;
-
-    //to use account_number for paybills.
-    $table_name = $wpdb->prefix . 'pmpro_mpesa';
-    $sql_string = sprintf("SELECT COUNT(*) FROM %s WHERE mpesa_transaction_id='%s'", $table_name, $transaction_id);
-    $transaction_exists = $wpdb->get_var($sql_string);
-    if (!empty($transaction_exists)) {
-        return false;
-    } else {
-        //save transaction in db
-        $insert_query = sprintf("INSERT INTO %s (msisdn, amount, payload, mpesa_transaction_id) VALUES (%s, %s, '%s','%s');", $table_name, $msisdn, $transaction_amount, $payload, $transaction_id);
-        $wpdb->query($insert_query);
-        // todo confirm result of the query
-        return true;
-    }
-
-}
-
-function mpesa_authorize()
-{
-    $api_key = pmpro_getOption("mpesa_api_key");
-    $secret_key = pmpro_getOption("mpesa_secret_key");
-    $gateway_environment = pmpro_getOption("gateway_environment");
-    $endpoint = ( $gateway_environment == 'live' ) ? 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials' : 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
-    $credentials = base64_encode( $api_key.':'.$secret_key );
-    $curl = curl_init();
-    curl_setopt( $curl, CURLOPT_URL, $endpoint );
-    curl_setopt( $curl, CURLOPT_HTTPHEADER, array( 'Authorization: Basic '.$credentials ) );
-    curl_setopt( $curl, CURLOPT_HEADER, false );
-    curl_setopt( $curl, CURLOPT_RETURNTRANSFER, 1 );
-    curl_setopt( $curl, CURLOPT_SSL_VERIFYPEER, false );
-    $curl_response = curl_exec( $curl );
-    print("pala");
-    print_r($curl_response);
-    return json_decode( $curl_response )->access_token;
+	update_option( 'mpesa_db_version', $mpesa_db_version );
 }
 
 /**
- * Register confirmation endpoint
+ * Handle the Daraja STK Push payment callback (called by Safaricom servers).
+ *
+ * URL: /?pmpro_mpesa_ipn=1&uid=<secret>
  */
-function mpesa_url_registration()
-{
+function pmpro_mpesa_ipn_listener() {
+	if ( ! isset( $_GET['pmpro_mpesa_ipn'] ) ) {
+		return;
+	}
 
-    // check for your custom query var
-    if (!isset($_GET['mpesa_url_registration'])) {
-        // if query var is not present just return
+	$stored_uid  = (string) pmpro_getOption( 'pmpro_mpesa_uid' );
+	$request_uid = isset( $_GET['uid'] ) ? sanitize_text_field( wp_unslash( $_GET['uid'] ) ) : '';
 
-        return;
+	if ( empty( $request_uid ) || ! hash_equals( $stored_uid, $request_uid ) ) {
+		wp_send_json( array( 'ResultCode' => 1, 'ResultDesc' => 'Invalid UID' ), 403 );
+		exit;
+	}
 
-    }
-    $token = mpesa_authorize();
-    $gateway_environment = pmpro_getOption("gateway_environment");
-    $short_code = pmpro_getOption("mpesa_short_code");
-    $mpesa_uid = pmpro_getOption("pmpro_mpesa_uid");
-    $comfirmation_url = home_url( '/?pmpro_mpesa_ipn=1&uid='.$mpesa_uid);
+	$raw  = file_get_contents( 'php://input' );
+	$data = json_decode( $raw );
 
-    $endpoint = ( $gateway_environment == 'live' ) ? 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl' : 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl';
-    $curl = curl_init();
-    curl_setopt( $curl, CURLOPT_URL, $endpoint );
-    curl_setopt( $curl, CURLOPT_HTTPHEADER, array( 'Content-Type:application/json','Authorization:Bearer '.$token ) );
+	if ( empty( $data ) ) {
+		wp_send_json( array( 'ResultCode' => 1, 'ResultDesc' => 'Invalid payload' ), 400 );
+		exit;
+	}
 
-    $curl_post_data = array(
-        'ShortCode' 		=> $short_code,
-        'ResponseType' 		=> 'Completed',
-        'ConfirmationURL' 	=> $comfirmation_url,
-        'ValidationURL' 	=> $comfirmation_url."&validation=1"
-    );
-    print_r($curl_post_data);
-    $data_string = json_encode( $curl_post_data );
-    curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
-    curl_setopt( $curl, CURLOPT_POST, true );
-    curl_setopt( $curl, CURLOPT_POSTFIELDS, $data_string );
-    curl_setopt( $curl, CURLOPT_HEADER, false );
-    $content = curl_exec( $curl );
-    if ( $content ) {
-        $msg = json_decode( $content );
-        $status = isset( $msg->ResponseDescription ) ? $msg->ResponseDescription : "Coud not register URLs";
-    } else {
-        $status = "Sorry could not connect to Daraja. Check your configuration and try again.";
-    }
-    print_r( array( 'Registration status' => $status ));
-    exit;
+	mpesa_process_stk_callback( $data, $raw );
 
+	wp_send_json( array( 'ResultCode' => 0, 'ResultDesc' => 'Success' ) );
+	exit;
 }
 
-function simulate_c2b(){
+/**
+ * Persist an STK Push callback to the database.
+ *
+ * @param object $data        Decoded JSON callback body.
+ * @param string $raw_payload Raw JSON string (stored for audit purposes).
+ * @return bool True on success, false on failure.
+ */
+function mpesa_process_stk_callback( $data, $raw_payload ) {
+	if ( empty( $data->Body->stkCallback ) ) {
+		return false;
+	}
 
-    // check for your custom query var
-    if (!isset($_GET['simulate_c2b'])) {
-        // if query var is not present just return
+	$callback            = $data->Body->stkCallback;
+	$checkout_request_id = isset( $callback->CheckoutRequestID ) ? sanitize_text_field( $callback->CheckoutRequestID ) : '';
+	$result_code         = isset( $callback->ResultCode ) ? (int) $callback->ResultCode : -1;
 
-        return;
+	global $wpdb;
+	$table_name = $wpdb->prefix . 'pmpro_mpesa';
 
-    }
-    $url = 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/simulate';
-    $token = mpesa_authorize();
-    $short_code = pmpro_getOption("mpesa_short_code");
+	// Prevent duplicate processing.
+	$existing_id = $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT id FROM {$table_name} WHERE checkout_request_id = %s",
+			$checkout_request_id
+		)
+	);
 
+	if ( $result_code !== 0 ) {
+		// Failed or cancelled – update the pending record if it exists.
+		if ( $existing_id ) {
+			$wpdb->update(
+				$table_name,
+				array( 'result_code' => $result_code, 'payload' => $raw_payload ),
+				array( 'id' => $existing_id ),
+				array( '%d', '%s' ),
+				array( '%d' )
+			);
+		}
+		return false;
+	}
 
-    $curl = curl_init();
-    curl_setopt($curl, CURLOPT_URL, $url);
-    curl_setopt( $curl, CURLOPT_HTTPHEADER, array( 'Content-Type:application/json','Authorization:Bearer '.$token ) );
+	// Successful payment – extract metadata items.
+	$amount       = 0;
+	$receipt      = '';
+	$phone_number = '';
 
-    $curl_post_data = array(
-        //Fill in the request parameters with valid values
-        'ShortCode' => $short_code,
-        'CommandID' => 'CustomerPayBillOnline',
-        'Amount' => '200',
-        'Msisdn' => '254708374149',
-        'BillRefNumber' => 'ioioio'
-    );
+	if ( ! empty( $callback->CallbackMetadata->Item ) ) {
+		foreach ( $callback->CallbackMetadata->Item as $item ) {
+			switch ( $item->Name ) {
+				case 'Amount':
+					$amount = floatval( $item->Value );
+					break;
+				case 'MpesaReceiptNumber':
+					$receipt = sanitize_text_field( $item->Value );
+					break;
+				case 'PhoneNumber':
+					$phone_number = sanitize_text_field( $item->Value );
+					break;
+			}
+		}
+	}
 
-    $data_string = json_encode($curl_post_data);
+	if ( $existing_id ) {
+		$wpdb->update(
+			$table_name,
+			array(
+				'amount'               => $amount,
+				'msisdn'               => $phone_number,
+				'mpesa_transaction_id' => $receipt,
+				'result_code'          => $result_code,
+				'payload'              => $raw_payload,
+			),
+			array( 'id' => $existing_id ),
+			array( '%f', '%s', '%s', '%d', '%s' ),
+			array( '%d' )
+		);
+	} else {
+		$wpdb->insert(
+			$table_name,
+			array(
+				'msisdn'               => $phone_number,
+				'amount'               => $amount,
+				'mpesa_transaction_id' => $receipt,
+				'checkout_request_id'  => $checkout_request_id,
+				'result_code'          => $result_code,
+				'payload'              => $raw_payload,
+			),
+			array( '%s', '%f', '%s', '%s', '%d', '%s' )
+		);
+	}
 
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_POST, true);
-    curl_setopt($curl, CURLOPT_POSTFIELDS, $data_string);
+	return true;
+}
 
-    $curl_response = curl_exec($curl);
-    print_r($curl_response);
+/**
+ * Obtain a Daraja OAuth 2.0 access token.
+ *
+ * @return string|false Access token string, or false on failure.
+ */
+function mpesa_get_access_token() {
+	$consumer_key    = pmpro_getOption( 'mpesa_consumer_key' );
+	$consumer_secret = pmpro_getOption( 'mpesa_consumer_secret' );
+	$environment     = pmpro_getOption( 'gateway_environment' );
 
-    echo $curl_response;
-    exit;
+	$endpoint = ( $environment === 'live' )
+		? 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
+		: 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+
+	$response = wp_remote_get(
+		$endpoint,
+		array(
+			'headers' => array(
+				'Authorization' => 'Basic ' . base64_encode( $consumer_key . ':' . $consumer_secret ),
+			),
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		return false;
+	}
+
+	$body = json_decode( wp_remote_retrieve_body( $response ) );
+	return isset( $body->access_token ) ? $body->access_token : false;
+}
+
+/**
+ * Initiate a Daraja STK Push (Lipa Na M-Pesa Online / M-Pesa Express).
+ *
+ * Inserts a pending row in the transactions table before the API call so
+ * that the callback can be matched by checkout_request_id.
+ *
+ * @param string $phone       Phone number in international format (e.g. 254712345678).
+ * @param float  $amount      Amount to request.
+ * @param string $reference   Account reference – typically the order code.
+ * @param string $description Short transaction description.
+ * @return object|false Decoded Daraja API response, or false on connection failure.
+ */
+function mpesa_stk_push( $phone, $amount, $reference, $description = '' ) {
+	$access_token = mpesa_get_access_token();
+	if ( ! $access_token ) {
+		return false;
+	}
+
+	$short_code  = pmpro_getOption( 'mpesa_short_code' );
+	$passkey     = pmpro_getOption( 'mpesa_passkey' );
+	$environment = pmpro_getOption( 'gateway_environment' );
+	$mpesa_uid   = pmpro_getOption( 'pmpro_mpesa_uid' );
+
+	$timestamp    = gmdate( 'YmdHis' );
+	$password     = base64_encode( $short_code . $passkey . $timestamp );
+	$callback_url = home_url( '/?pmpro_mpesa_ipn=1&uid=' . $mpesa_uid );
+
+	$endpoint = ( $environment === 'live' )
+		? 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
+		: 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
+
+	$body = array(
+		'BusinessShortCode' => $short_code,
+		'Password'          => $password,
+		'Timestamp'         => $timestamp,
+		'TransactionType'   => 'CustomerPayBillOnline',
+		'Amount'            => (int) ceil( $amount ),
+		'PartyA'            => $phone,
+		'PartyB'            => $short_code,
+		'PhoneNumber'       => $phone,
+		'CallBackURL'       => $callback_url,
+		'AccountReference'  => substr( $reference, 0, 12 ),
+		'TransactionDesc'   => substr( $description ? $description : $reference, 0, 13 ),
+	);
+
+	// Insert a pending record so the callback can be matched.
+	global $wpdb;
+	$table_name = $wpdb->prefix . 'pmpro_mpesa';
+	$wpdb->insert(
+		$table_name,
+		array(
+			'msisdn'      => $phone,
+			'amount'      => (float) $amount,
+			'result_code' => -1,
+		),
+		array( '%s', '%f', '%d' )
+	);
+	$pending_id = $wpdb->insert_id;
+
+	$response = wp_remote_post(
+		$endpoint,
+		array(
+			'headers' => array(
+				'Authorization' => 'Bearer ' . $access_token,
+				'Content-Type'  => 'application/json',
+			),
+			'body'    => wp_json_encode( $body ),
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		$wpdb->delete( $table_name, array( 'id' => $pending_id ), array( '%d' ) );
+		return false;
+	}
+
+	$result = json_decode( wp_remote_retrieve_body( $response ) );
+
+	if ( isset( $result->CheckoutRequestID ) ) {
+		// Store the CheckoutRequestID so the callback can update the right row.
+		$wpdb->update(
+			$table_name,
+			array( 'checkout_request_id' => $result->CheckoutRequestID ),
+			array( 'id' => $pending_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+	} else {
+		// API rejected the request – remove the pending row.
+		$wpdb->delete( $table_name, array( 'id' => $pending_id ), array( '%d' ) );
+	}
+
+	return $result;
+}
+
+/**
+ * Register C2B confirmation and validation URLs with Daraja.
+ *
+ * This is optional when using STK Push, but available for C2B integrations.
+ * Triggered by visiting /?mpesa_url_registration=live|sandbox
+ */
+function mpesa_url_registration() {
+	if ( ! isset( $_GET['mpesa_url_registration'] ) ) {
+		return;
+	}
+
+	$access_token = mpesa_get_access_token();
+	if ( ! $access_token ) {
+		wp_die( esc_html__( 'Could not obtain M-Pesa access token. Check your Consumer Key and Secret.', 'paid-memberships-pro' ) );
+	}
+
+	$environment = pmpro_getOption( 'gateway_environment' );
+	$short_code  = pmpro_getOption( 'mpesa_short_code' );
+	$mpesa_uid   = pmpro_getOption( 'pmpro_mpesa_uid' );
+	$confirm_url = home_url( '/?pmpro_mpesa_ipn=1&uid=' . $mpesa_uid );
+
+	$endpoint = ( $environment === 'live' )
+		? 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl'
+		: 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl';
+
+	$response = wp_remote_post(
+		$endpoint,
+		array(
+			'headers' => array(
+				'Authorization' => 'Bearer ' . $access_token,
+				'Content-Type'  => 'application/json',
+			),
+			'body'    => wp_json_encode( array(
+				'ShortCode'       => $short_code,
+				'ResponseType'    => 'Completed',
+				'ConfirmationURL' => $confirm_url,
+				'ValidationURL'   => $confirm_url . '&validation=1',
+			) ),
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		wp_die( esc_html__( 'Could not connect to M-Pesa. Please try again.', 'paid-memberships-pro' ) );
+	}
+
+	$msg    = json_decode( wp_remote_retrieve_body( $response ) );
+	$status = isset( $msg->ResponseDescription ) ? $msg->ResponseDescription : __( 'Could not register URLs.', 'paid-memberships-pro' );
+
+	pmpro_setOption(
+		'pmpro_mpesa_url_reg_status_production',
+		( stripos( $status, 'success' ) !== false ) ? 1 : 0
+	);
+
+	wp_die( esc_html( $status ) );
+}
+
+/**
+ * Simulate a C2B transaction on the Daraja sandbox (for testing).
+ *
+ * Triggered by visiting /?simulate_c2b
+ */
+function simulate_c2b() {
+	if ( ! isset( $_GET['simulate_c2b'] ) ) {
+		return;
+	}
+
+	$access_token = mpesa_get_access_token();
+	if ( ! $access_token ) {
+		wp_die( esc_html__( 'Could not obtain M-Pesa access token.', 'paid-memberships-pro' ) );
+	}
+
+	$short_code = pmpro_getOption( 'mpesa_short_code' );
+
+	$response = wp_remote_post(
+		'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/simulate',
+		array(
+			'headers' => array(
+				'Authorization' => 'Bearer ' . $access_token,
+				'Content-Type'  => 'application/json',
+			),
+			'body'    => wp_json_encode( array(
+				'ShortCode'     => $short_code,
+				'CommandID'     => 'CustomerPayBillOnline',
+				'Amount'        => '200',
+				'Msisdn'        => '254708374149',
+				'BillRefNumber' => 'test',
+			) ),
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		wp_die( esc_html__( 'Could not connect to M-Pesa sandbox.', 'paid-memberships-pro' ) );
+	}
+
+	wp_die( esc_html( wp_remote_retrieve_body( $response ) ) );
 }
